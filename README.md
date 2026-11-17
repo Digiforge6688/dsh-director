@@ -19,6 +19,12 @@
 
 ## 1. 5 分钟开始
 
+### 前置条件
+
+- DSH 0.2.x（`engines.dsh` 为 `>=0.2.0 <0.3.0`）。
+- 一个可访问的 **ZipX 后端**（默认 `http://localhost:8000`）和 **ZipX 账号**。
+- 插件是 ZipX 的 DSH 前端，不自带模型或后端。没有 ZipX 后端时**安装能成功**，也能看到连接与诊断，但创建/推进项目不可用。
+
 ### 安装（npm，推荐）
 
 ~~~powershell
@@ -76,7 +82,9 @@ dsh plugin --profile web list
 2. 点「连接 ZipX」，用邮箱/密码登录，或从 ZipX 网页 Studio 点「用 DSH 创作」走配对码；
 3. 看到账号、积分、令牌来源即成功。token 不再回显，也不会进浏览器。
 
-ZipX 侧需要打开 DSH 渠道（否则读写端点会 403 `channel_disabled`）：
+> ZipX 不在本机时，先在设置里把 `baseUrl` 改成你的实例地址（例如 `https://zipx.example.com`），再登录。
+
+自部署 ZipX 时，ZipX 侧需要打开 DSH 渠道（否则读写端点会 403 `channel_disabled`）：
 
 ~~~yaml
 # docker-compose.yml → backend.environment
