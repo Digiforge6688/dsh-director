@@ -2,6 +2,8 @@
 
 > **在 DSH 里当导演，ZipX 负责拍。**
 > 一句话说清要什么，ZipX 把它拆成项目、剧本、分镜、关键帧、镜头与成片；每一步花多少、能不能过、交付什么，都在对话里看得见。
+>
+> 源码/发布：<https://github.com/Digiforge6688/zipx-dsh-plugin> · Release v0.3.0 带 tgz 资产
 
 这是一个标准 DSH 组合包（`dsh.bundle`），不是网页的第二个壳。装好后：
 
