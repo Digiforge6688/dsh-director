@@ -1,5 +1,7 @@
 # 发布到 DSH 插件市场（P4）
 
+> 对外注册：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>
+
 市场条目**不是手写的**，是 `apps/plugin-market-generator` 从已发布的包**生成**的。
 生成器会拒掉：`private: true`、`engines.dsh` 为空或写 `workspace:`、拿不到图标、没有 `dsh.bundle` 的包。
 那些理由在构建、单测、装包里都不会红——所以在本地先跑一道门禁：
@@ -11,8 +13,8 @@ node scripts/check-market-ready.mjs   # 21 条断言，全过才谈发布
 ## 一、本地分发（现在就能用，不需要发布）
 
 ```powershell
-pnpm --dir integrations/dsh-plugin pack          # zipx-dsh-plugin-0.2.0.tgz
-pnpm dsh plugin --profile web add ./zipx-dsh-plugin-0.2.0.tgz
+pnpm --dir integrations/dsh-plugin pack          # zipx-dsh-plugin-0.3.0.tgz
+pnpm dsh plugin --profile web add ./zipx-dsh-plugin-0.3.0.tgz
 ```
 
 tarball 里已经带了 `lib/`、`cordis.patch.yml`、`locale/`、`skills/`、`docs/`、`screenshots/`、`icon.svg`、`CHANGELOG.md`——
@@ -76,4 +78,4 @@ github:zipx/zipx-pro#v0.2.0
 1. 市场里搜 `zipx` 命中，卡片有图标与中英标题；
 2. 详情页有截图与工具清单；
 3. 点安装 → `dsh plugin --profile <name> add @zipx/dsh-plugin` → `--dump-config` 出现 `# == @zipx/dsh-plugin`；
-4. 新会话里 34 个 `zipx_*` 工具可见，侧栏出现「ZipX 创作」。
+4. 新会话里 35 个 `zipx_*` 工具可见，侧栏出现「ZipX 创作」。

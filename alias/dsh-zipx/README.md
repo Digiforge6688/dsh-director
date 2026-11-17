@@ -3,6 +3,8 @@
 Discovery alias for **ZipX Director**. Installing this package pulls `@zipx/dsh-plugin`
 and applies the same DSH bundle layer, so the runtime implementation stays in one place.
 
+ZipX account: <https://www.zipx.ai> (global) · <https://www.zipx.vip> (China).
+
 ```powershell
 dsh plugin --profile web add dsh-zipx
 ```

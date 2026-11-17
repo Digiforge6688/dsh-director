@@ -17,12 +17,21 @@
 
 ---
 
+## 0. 注册 ZipX
+
+插件需要 ZipX 账号。没有账号先注册：
+
+- **国际站**：<https://www.zipx.ai>
+- **中国站**：<https://www.zipx.vip>
+
+注册后回到 DSH，在 **设置 → ZipX** 里用这个账号登录。
+
 ## 1. 5 分钟开始
 
 ### 前置条件
 
 - DSH 0.2.x（`engines.dsh` 为 `>=0.2.0 <0.3.0`）。
-- 一个可访问的 **ZipX 后端**（默认 `http://localhost:8000`）和 **ZipX 账号**。
+- 一个可访问的 **ZipX 后端**（默认 `http://localhost:8000`）和 **ZipX 账号**（[国际站](https://www.zipx.ai) / [中国站](https://www.zipx.vip)）。
 - 插件是 ZipX 的 DSH 前端，不自带模型或后端。没有 ZipX 后端时**安装能成功**，也能看到连接与诊断，但创建/推进项目不可用。
 
 ### 安装（npm，推荐）
@@ -78,7 +87,7 @@ dsh plugin --profile web list
 
 ### 连接 ZipX
 
-1. 打开 **设置 → ZipX**；
+1. 打开 **设置 → ZipX**；没有账号先到 [国际站](https://www.zipx.ai) 或 [中国站](https://www.zipx.vip) 注册；
 2. 点「连接 ZipX」，用邮箱/密码登录，或从 ZipX 网页 Studio 点「用 DSH 创作」走配对码；
 3. 看到账号、积分、令牌来源即成功。token 不再回显，也不会进浏览器。
 

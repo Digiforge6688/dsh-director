@@ -2,6 +2,8 @@
 
 > 面向：想评估/二次开发这个插件的人。安装与快速上手看 [README](../README.md)。
 >
+> 注册 ZipX：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>。
+>
 > **0.3.0（2026-11-16）**：对话优先重构。35 个工具全部带 `presentationMeta`；18 张专属原生卡；
 > 付费走 `tools/pre-execute` 原生批准；长任务走 `ctx.jobs.start`；右侧栏工作台/产物/交付；
 > token 进 DSH Credentials；删除 `fallbackBinding`。工具→端点表仍有效，但“render 纯文本/面板三栏”的描述已过时。

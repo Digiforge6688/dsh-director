@@ -36,12 +36,12 @@
         "zh": "ZipX 导演"
       },
       "description": {
-        "en": "Conversation-first filmmaking: native status/preview/approval/progress/artifact cards, a project chip, a right-side workbench, and a delivery checklist. 34 zipx_* tools; one confirmation per paid step.",
-        "zh": "对话优先的影视创作：原生状态/预检/批准/进度/产物卡片、项目 Chip、右侧工作台与交付检查单；35 个 zipx_* 工具，每个付费步骤都要一次确认。"
+        "en": "Conversation-first filmmaking: native status/preview/approval/progress/artifact cards, a project chip, a right-side workbench, and a delivery checklist. 35 zipx_* tools; one confirmation per paid step. Sign up at www.zipx.ai (global) or www.zipx.vip (China).",
+        "zh": "对话优先的影视创作：原生状态/预检/批准/进度/产物卡片、项目 Chip、右侧工作台与交付检查单；35 个 zipx_* 工具，每个付费步骤都要一次确认。注册：www.zipx.ai（国际）/ www.zipx.vip（中国）。"
       },
       "icon": "./icon.svg",
       "author": "ZipX",
-      "homepage": "https://github.com/Digiforge6688/zipx-dsh-plugin#readme",
+      "homepage": "https://www.zipx.ai",
       "repository": {
         "url": "https://github.com/Digiforge6688/zipx-dsh-plugin"
       },
