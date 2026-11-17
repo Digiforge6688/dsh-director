@@ -54,8 +54,8 @@ const index = {
       name: pkg.name,
       title: { en: 'ZipX Creator', zh: 'ZipX 创作' },
       description: {
-        en: 'Chat in DSH, create in ZipX: 34 zipx_* tools, a creator panel and a zipx-creator skill.',
-        zh: '在 DSH 里对话、在 ZipX 里创作：34 个 zipx_* 工具、创作者面板与 zipx-creator 技能。',
+        en: 'Chat in DSH, create in ZipX: 35 zipx_* tools, a creator panel and a zipx-creator skill. Sign up at www.zipx.ai (global) or www.zipx.vip (China).',
+        zh: '在 DSH 里对话、在 ZipX 里创作：35 个 zipx_* 工具、创作者面板与 zipx-creator 技能。注册：www.zipx.ai（国际）/ www.zipx.vip（中国）。',
       },
       icon: baseUrl ? baseUrl + '/icon.svg' : pkg.icon,
       author: 'ZipX',
