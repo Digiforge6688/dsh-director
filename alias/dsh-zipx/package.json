@@ -1,0 +1,43 @@
+{
+  "name": "dsh-zipx",
+  "version": "0.3.0",
+  "description": "Discovery alias for ZipX Director: installs @zipx/dsh-plugin and applies its DSH bundle layer.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-zipx",
+    "zipx",
+    "film",
+    "storyboard",
+    "ai-film",
+    "director"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Digiforge6688/zipx-dsh-plugin/tree/master/alias/dsh-zipx#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Digiforge6688/zipx-dsh-plugin.git",
+    "directory": "alias/dsh-zipx"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@zipx/dsh-plugin": "0.3.0"
+  },
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.0 <0.3.0"
+  }
+}

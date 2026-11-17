@@ -1,0 +1,82 @@
+{
+  "format": 1,
+  "title": {
+    "en": "ZipX Director",
+    "zh": "ZipX 导演"
+  },
+  "description": {
+    "en": "From one sentence to a deliverable film inside DSH: projects, storyboards, keyframes, cuts, gates and cost — one confirmation at a time.",
+    "zh": "在 DSH 里从一句话做到一部能交付的片：项目、分镜、关键帧、成片、门禁与成本，一步一确认。"
+  },
+  "metadata": {
+    "categories": {
+      "creation": {
+        "title": {
+          "en": "Creation",
+          "zh": "创作"
+        }
+      }
+    },
+    "labels": {},
+    "sortKeys": {
+      "updated": {
+        "title": {
+          "en": "Updated",
+          "zh": "最近更新"
+        },
+        "order": "desc"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "@zipx/dsh-plugin",
+      "title": {
+        "en": "ZipX Director",
+        "zh": "ZipX 导演"
+      },
+      "description": {
+        "en": "Conversation-first filmmaking: native status/preview/approval/progress/artifact cards, a project chip, a right-side workbench, and a delivery checklist. 34 zipx_* tools; one confirmation per paid step.",
+        "zh": "对话优先的影视创作：原生状态/预检/批准/进度/产物卡片、项目 Chip、右侧工作台与交付检查单；35 个 zipx_* 工具，每个付费步骤都要一次确认。"
+      },
+      "icon": "./icon.svg",
+      "author": "ZipX",
+      "homepage": "https://github.com/Digiforge6688/zipx-dsh-plugin#readme",
+      "repository": {
+        "url": "https://github.com/Digiforge6688/zipx-dsh-plugin"
+      },
+      "metadata": {
+        "category": "creation",
+        "keywords": [
+          "zipx",
+          "dsh",
+          "dsh-plugin",
+          "dsh-zipx",
+          "film",
+          "storyboard",
+          "ai-film",
+          "director",
+          "video",
+          "deepseek-harness"
+        ],
+        "labels": [],
+        "sortKeys": {
+          "updated": 1794840000
+        }
+      },
+      "versions": [
+        {
+          "version": "0.3.0",
+          "publishTimestamp": 1794840000,
+          "source": {
+            "type": "npm",
+            "registry": "https://registry.npmjs.org"
+          },
+          "engines": {
+            "dsh": ">=0.2.0 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}

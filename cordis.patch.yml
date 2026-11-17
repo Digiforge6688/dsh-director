@@ -1,0 +1,8 @@
+# ZipX × DSH 组合包 patch：工具层。
+# 装机后由 profile 作为一层应用；行名必须是裸包名，Node 才能从安装位置解析到代码。
+- insert:
+    - id: zipx-tools
+      name: '@zipx/dsh-plugin'
+      config:
+        baseUrl: 'http://localhost:8000'
+        language: zh
