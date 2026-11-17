@@ -40,6 +40,12 @@ pnpm dsh --profile web --dump-config | findstr /c:"zipx" /c:"=="
 
 重启 DSH Web，新会话里应当出现 `zipx_*` 工具与 `zipx-creator` 技能。
 
+不求 npm 也可以直接从公开仓库装（pnpm 会 clone + 运行 prepare 构建）：
+
+~~~powershell
+dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v0.3.0
+~~~
+
 不分发 npm 也可以装 tarball：
 
 ~~~powershell

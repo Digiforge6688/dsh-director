@@ -45,7 +45,8 @@ ZipX 产物（剧本/分镜/关键帧/成片）
 | `zipx_rollback_step` | POST …/steps/{s}/rollback | 写 | |
 | `zipx_update_blueprint` | PUT /blueprint/{pid}/intake | 写 | |
 | `zipx_sign_lock` | POST /locks/{lock}/sign | 写 | |
-| `zipx_watch_step` | 轮询 /state | 读 | |
+| `zipx_abort` | POST /project/{id}/abort | 写 | |
+| `zipx_watch_step` | 轮询 /state（后台任务） | 读 | |
 | `zipx_watch_turn` | 轮询 /turn | 读 | |
 | `zipx_chat` | POST /chat | 写 | ✔ |
 
