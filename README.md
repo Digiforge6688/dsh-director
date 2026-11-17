@@ -19,42 +19,56 @@
 
 ## 1. 5 分钟开始
 
-### 安装（本机路径）
+### 安装（npm，推荐）
 
 ~~~powershell
-cd D:\DHS\deepseek-harness
-pnpm dsh plugin --profile web add E:\zipx\zipx-pro\integrations\dsh-plugin
-pnpm dsh --profile web --dump-config | findstr /c:"zipx" /c:"=="
+dsh plugin --profile web add @zipx/dsh-plugin@0.3.0
 ~~~
 
-应当看到：
+> 普通安装的 DSH 直接用 `dsh`。如果你是在 DSH 源码 checkout 里运行（没有全局 `dsh`），把 `dsh` 换成 `pnpm dsh`，并在 checkout 根目录执行。
 
-~~~yaml
-# == @zipx/dsh-plugin
-- id: zipx-tools
-  name: '@zipx/dsh-plugin'
-  config:
-    baseUrl: http://localhost:8000
-    language: zh
+也可以装发现别名（同一个实现包）：
+
+~~~powershell
+dsh plugin --profile web add dsh-zipx@0.3.0
 ~~~
 
-重启 DSH Web，新会话里应当出现 `zipx_*` 工具与 `zipx-creator` 技能。
+装完重启 DSH Web，新会话里应当出现 `zipx_*` 工具与 `zipx-creator` 技能。
 
-不求 npm 也可以直接从公开仓库装（pnpm 会 clone + 运行 prepare 构建）：
+### 其他安装方式
+
+从公开仓库的 tag 安装（pnpm 会 clone + 运行 prepare 构建）：
 
 ~~~powershell
 dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v0.3.0
 ~~~
 
-不分发 npm 也可以装 tarball：
+从 Release 的 tgz 安装：
 
 ~~~powershell
-cd integrations/dsh-plugin
-npm pack                     # zipx-dsh-plugin-0.3.0.tgz
+# 先下载：
+# https://github.com/Digiforge6688/zipx-dsh-plugin/releases/download/v0.3.0/zipx-dsh-plugin-0.3.0.tgz
 dsh plugin --profile web add .\zipx-dsh-plugin-0.3.0.tgz
 ~~~
 
-> npm 包名目前仍是 `@zipx/dsh-plugin`（升级兼容）。市场搜索名/标题是 **dsh-zipx / ZipX 导演**；发布别名包的步骤见 `docs/DSH_插件公网发布_操作手册_20261113.md`。
+从本地源码安装（仅开发者；换成你自己的路径）：
+
+~~~powershell
+cd <DSH checkout>
+pnpm dsh plugin --profile web add <ZipX 仓库>\integrations\dsh-plugin
+~~~
+
+验证安装：
+
+~~~powershell
+dsh plugin --profile web list
+# 从 DSH 源码 checkout 里则用：
+# pnpm dsh plugin --profile web list
+~~~
+
+应当看到 `@zipx/dsh-plugin@0.3.0`。
+
+> npm 包名是 `@zipx/dsh-plugin`；市场搜索名/标题是 **dsh-zipx / ZipX 导演**。别名包 `dsh-zipx` 与主包同版本发布，装任意一个即可。
 
 ### 连接 ZipX
 
@@ -105,7 +119,7 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 - **模型看短的，人看全的**。`output.render` 只给 3–5 行结论；完整结构化数据进 `presentationMeta`，回放/断网也能还原卡片。
 - **付费 100% 批准**。`zipx_start / confirm_step / regenerate_step / regenerate_item / resume_step / start_episode / dispatch` 以及会触发付费的 `zipx_chat`，都在 `tools/pre-execute` 返回 `ask`；没有批准通道时**拒绝执行**（可用 `ZIPX_ALLOW_UNCONFIRMED=1` 显式放行，仅限 headless）。
 - **预算先行**。设置页可设每步/每日上限；超过上限的付费动作在批准前被拒。
-- **长任务不阻塞**。`zipx_watch_step` 默认 `ctx.jobs.start`，立即返回 job id；取消只停止跟踪，**ZipX 后端可能仍在生成**（如实写在文案里）。
+- **长任务不阻塞**。`zipx_watch_step` 默认 `ctx.jobs.start`，立即返回 job id；要停就调 `zipx_abort`，它会请求 ZipX 后端中止当前步骤并释放执行锁。**已经发出的付费调用可能仍会完成**，后续步骤不再继续（如实写在文案里）。
 
 ---
 
@@ -162,7 +176,7 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 
 - 视频签名 URL 由 Host `/zipx-media` 代理并保留 Range；**只转发 ZipX 后端的文件路径**，不是开放代理。
 - 项目绑定按会话；**没有全局 fallback**。主面板在没有任何会话时选项目，会把选择交给下一次会话 Chip 挂载时绑定。
-- 取消后台任务只停止跟踪；ZipX 目前没有公开的 cancel 端点。
+- 取消：`zipx_abort` 会请求 ZipX 后端中止当前步骤并释放执行锁；**已经发出的付费调用可能仍会完成**，后续步骤不再继续，DSH 侧的后台任务也会停止跟踪。
 - `?zipx_shell=legacy` 是回滚通道，不是主路径；日常创作以对话 + 卡片 + 右侧栏为准。
 
 ---
@@ -170,12 +184,14 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 ## 8. 开发与校验
 
 ~~~powershell
-cd integrations/dsh-plugin
+cd <你的 ZipX 仓库>\integrations\dsh-plugin
 npm run build
 npm run check          # 工具面/技能/网络/账户/宿主接线/面板/locale
 npm run verify:bundle  # 无浏览器跑一遍工厂 bundle
 npm run audit:plan     # P0–P3 逐项审计
 ~~~
+
+> 不要在 `D:\DHS\deepseek-harness` 里找 `integrations/dsh-plugin`：那是 DSH 源码 checkout；插件源码在 ZipX 仓库的 `integrations/dsh-plugin`。
 
 - 客户端源码在 `src/client/*.js`，按文件名顺序拼成 `lib/client.js`；不要再写单文件大 bundle。
 - 宿主源码 `src/index.ts` + `src/presentation.ts`，零依赖构建（Node 自带类型擦除）。
