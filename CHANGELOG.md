@@ -30,7 +30,7 @@
   无批准通道时拒绝（`ZIPX_ALLOW_UNCONFIRMED=1` 仅显式放行）。`confirm: true` 不再被信任。
 * **预算拦截**：每步/每日上限，超出时在批准前 deny；批准后在 `tools/result` 记账。
 * **后台任务**：`zipx_watch_step` 用 `ctx.jobs.start` 立即返回 job id；完成由 ui-jobs 通知；
-  无 jobs 服务时退回阻塞等待。取消只停跟踪，如实说明后端可能仍在生成。
+  无 jobs 服务时退回阻塞等待。取消走 `zipx_abort`（请求后端中止并释放执行锁；已发出的付费调用可能仍完成）。
 * `zipx_confirm_step` 不再阻塞 90 秒：只回「已受理」，真实进度交给 `zipx_watch_step`。
 
 ### P2 右侧栏工作台 + 产物 + 交付
