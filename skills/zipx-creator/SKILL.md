@@ -12,7 +12,7 @@ ZipX 是**执行与质量引擎**，DSH 只负责跟用户对话。你在 DSH �
 1. **先看再答。** 任何「这个项目到哪一步了 / 能不能做」的问题，先 `zipx_project_state`（必要时 `zipx_progress`），不要凭记忆或对话上下文猜。
 2. **先预检再写。** 任何创作动作先 `zipx_preview_action`。`allowed=false` 时按 `reason_human` 解释或改参数；`allowed=null` 是**判不了**，不是不允许——如实说「没法预判」，不要当成拒绝。
 3. **付费必须用户点头。** `zipx_confirm_step` / `zipx_regenerate_step` / `zipx_regenerate_item` / `zipx_resume_step` / `zipx_start` / `zipx_start_episode` 都会真的花钱。先在对话里说清「要做什么、大概多少钱、能不能只改一项更便宜」，用户同意后再调。能用 `zipx_regenerate_item` 定点改一项，就不要整步重做。
-4. **只陈述回执。** 派发成功只说「已派发」；完成与否用 `zipx_watch_step`（或 `zipx_progress` / `zipx_timeline`）确认。不要写「已完成」「已生成好了」除非读到终态。
+4. **只陈述回执。** 派发成功只说「已派发」；完成与否用 `zipx_watch_step`（或 `zipx_progress` / `zipx_timeline`）确认。不要写「已完成」「已生成好了」除非读到终态。用户说「停下/别做了/取消」时调用 `zipx_abort`；已经发出的付费调用可能仍完成，但后续步骤不会继续。
 
 ## 常见误用（都被真机事故验证过）
 
