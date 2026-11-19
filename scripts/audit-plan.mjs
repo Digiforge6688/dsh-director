@@ -20,7 +20,10 @@ const client = ['00-header.js', '05-util.js', '10-locale-zh.js', '11-locale-en.j
   .map(name => readFileSync(join(clientDir, name), 'utf8')).join('\n')
 const readme = readFileSync(join(root, 'README.md'), 'utf8')
 const market = JSON.parse(readFileSync(join(root, 'market', 'index.json'), 'utf8'))
-const alias = JSON.parse(readFileSync(join(root, '..', 'dsh-zipx', 'package.json'), 'utf8'))
+const aliasPath = existsSync(join(root, 'alias', 'dsh-zipx', 'package.json'))
+  ? join(root, 'alias', 'dsh-zipx', 'package.json')
+  : join(root, '..', 'dsh-zipx', 'package.json')
+const alias = JSON.parse(readFileSync(aliasPath, 'utf8'))
 
 const rows = []
 function add(id, phase, item, status, evidence) { rows.push({ id, phase, item, status, evidence }) }
@@ -28,7 +31,7 @@ function pass(id, phase, item, ok, evidence) { add(id, phase, item, ok ? 'PASS' 
 function skip(id, phase, item, why) { add(id, phase, item, 'SKIP', why) }
 
 // P0
-pass('P0-1', 'P0', '包名/仓库/许可证/版本', pkg.version === '0.3.0' && pkg.license === 'MIT' && !!pkg.repository?.url && alias.name === 'dsh-zipx',
+pass('P0-1', 'P0', '包名/仓库/许可证/版本', pkg.version === '1.0.0' && pkg.license === 'MIT' && !!pkg.repository?.url && alias.name === 'dsh-zipx',
   'v' + pkg.version + ' · ' + pkg.license + ' · alias ' + alias.name)
 pass('P0-2', 'P0', 'dsh.client.inject + optional peers', Array.isArray(pkg.dsh?.client?.inject) && pkg.dsh.client.inject.length === 17 && !!pkg.peerDependenciesMeta?.['@deepseek-ai/dsh-credentials'],
   pkg.dsh?.client?.inject?.length + ' injects; optional credentials/jobs/webserver/approval')
@@ -38,7 +41,7 @@ pass('P0-4', 'P0', '删除 fallbackBinding + 后端按会话恢复', !host.inclu
   'no fallback; GET /session/{id} recovery')
 pass('P0-5', 'P0', '设置页（连接/账号/积分/预算/诊断）', client.includes("settings.section") && client.includes("settings.budget") && client.includes("/zipx-doctor"),
   'settings.section + /zipx-auth/status + /zipx-budget + /zipx-doctor')
-skip('P0-6', 'P0', 'dshbase / dshget / dsh.so 收录', 'dshbase #336 已提交；npm 0.3.0 已发布，dsh.so/dshget 目录提交待站点会话/索引刷新')
+skip('P0-6', 'P0', 'dshbase / dshget / dsh.so 收录', 'dshbase #336 已提交；dsh-director 1.0.0 尚未发布到 npm，市场索引/git tag 可装；dsh.so/dshget 目录待站点会话')
 
 // P1
 pass('P1-1', 'P1', '项目 Chip', client.includes('conversation.session.header.actions') && client.includes('function ProjectChip'), 'ProjectChip → header.actions')
@@ -69,9 +72,9 @@ pass('P3-1', 'P3', '/zipx /zipx-status /zipx-doctor', client.includes("add('zipx
 pass('P3-2', 'P3', '@项目 引用', client.includes("trigger: '@'") && client.includes('zipx-projects') && client.includes('<zipx_project id='), 'inputTriggers source + serialization')
 pass('P3-3', 'P3', '移动端布局', client.includes('auto-fill') && client.includes('flexWrap') && client.includes('overflowX'),
   'auto-fill grid / flex-wrap / horizontal chip row')
-pass('P3-4', 'P3', 'README / 市场 / 成本表', readme.includes('在 DSH 里当导演') && readme.includes('成本') && market.plugins[0].versions[0].version === '0.3.0',
-  'README first screen + market 0.3.0')
-pass('P3-5', 'P3', 'npm 发布 0.3.0 + 别名', true, 'dsh-director@0.3.0 与 dsh-zipx@0.3.0 已发布（2026-11-17）；公开仓库/Release/dshbase #336 已完成')
+pass('P3-4', 'P3', 'README / 市场 / 成本表', readme.includes('在 DSH 里当导演') && readme.includes('成本') && market.plugins[0].versions[0].version === pkg.version,
+  'README first screen + market ' + pkg.version)
+skip('P3-5', 'P3', 'npm 发布 1.0.0 + 别名', 'dsh-director 尚未发布到 npm（仓库 secret NPM_TOKEN 未配置）；市场索引与 git tag v1.0.0 可装')
 
 // Tests
 let checks = ''
