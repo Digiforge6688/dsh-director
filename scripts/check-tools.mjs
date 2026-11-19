@@ -11,13 +11,13 @@ import { fileURLToPath } from 'node:url'
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const built = await readFile(join(root, 'lib', 'index.js'), 'utf8')
 
-const EXPECTED_TOOLS = 35
+const EXPECTED_TOOLS = 43
 const tools = [...built.matchAll(/name: 'zipx_[a-z_]+'/g)].map(m => m[0].slice(7, -1))
 const problems = []
 
 if (tools.length !== EXPECTED_TOOLS) problems.push(`expected ${EXPECTED_TOOLS} tools, found ${tools.length}`)
 if (new Set(tools).size !== tools.length) problems.push('duplicate tool names: ' + tools.filter((t, i) => tools.indexOf(t) !== i).join(', '))
-for (const required of ['zipx_project_state', 'zipx_preview_action', 'zipx_confirm_step', 'zipx_watch_step', 'zipx_abort', 'zipx_list_projects', 'zipx_bind_project', 'zipx_project_overview', 'zipx_artifacts', 'zipx_delivery', 'zipx_cost', 'zipx_repair_action', 'zipx_connect', 'zipx_events', 'zipx_dispatch']) {
+for (const required of ['zipx_project_state', 'zipx_preview_action', 'zipx_confirm_step', 'zipx_watch_step', 'zipx_abort', 'zipx_list_projects', 'zipx_bind_project', 'zipx_project_overview', 'zipx_artifacts', 'zipx_delivery', 'zipx_cost', 'zipx_repair_action', 'zipx_connect', 'zipx_events', 'zipx_dispatch', 'zipx_update_project_input', 'zipx_step_result', 'zipx_unbind_project', 'zipx_update_project', 'zipx_creator_kb', 'zipx_collab']) {
   if (!tools.includes(required)) problems.push(`missing required tool ${required}`)
 }
 if (!built.includes('systemPrompt.section')) problems.push('system prompt section missing (discoverability)')

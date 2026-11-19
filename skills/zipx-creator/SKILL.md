@@ -14,6 +14,33 @@ ZipX 是**执行与质量引擎**，DSH 只负责跟用户对话。你在 DSH �
 3. **付费必须用户点头。** `zipx_confirm_step` / `zipx_regenerate_step` / `zipx_regenerate_item` / `zipx_resume_step` / `zipx_start` / `zipx_start_episode` 都会真的花钱。先在对话里说清「要做什么、大概多少钱、能不能只改一项更便宜」，用户同意后再调。能用 `zipx_regenerate_item` 定点改一项，就不要整步重做。
 4. **只陈述回执。** 派发成功只说「已派发」；完成与否用 `zipx_watch_step`（或 `zipx_progress` / `zipx_timeline`）确认。不要写「已完成」「已生成好了」除非读到终态。用户说「停下/别做了/取消」时调用 `zipx_abort`；已经发出的付费调用可能仍完成，但后续步骤不会继续。
 
+## 生成完必须把结果放回对话（2026-11-17 真机）
+
+- 一次生成结束（`zipx_watch_step` 到终态，或 `zipx_project_state` 显示 `is_complete`）后，**必须调 `zipx_step_result`**：它给正文节选、章/场/镜计数、可播媒体和门禁，DSH 会话里会渲染成一张结果卡（图片/视频可看可播）。
+- 只说「已完成」「1/1」不算交付。模板：一句结论（第几步、产出了什么、门禁过没过）+ 正文节选（若短）+ 媒体数量；需要全文再 `zipx_read_asset`，需要全部媒体清单再 `zipx_artifacts`。
+- 后台任务的完成通知只带一段紧凑回执；**不要只转述它**，也不要凭它猜产物内容——预览以 `zipx_step_result` 的返回为准。
+- 读不到产物（`has_content=false`）就如实说「这一步还没有产物」，不要拿 ProjectState 的计数冒充内容。
+
+## 建项目：创意母本必须进 initial_content（2026-11-17 真机）
+
+- `zipx_create_project` 的 **`initial_content` 必填**：故事步骤只读 `project.input_prompt`，**不读 title/genre/蓝图**。只给 title+genre，作家会按「请创作一个有趣的故事」的占位提示生成一个完全跑题的故事。
+- 把用户的故事想法、原文摘录、世界观、硬性要求**逐字**放进 `initial_content`；`story_characters` / `story_worldbuilding` 放人物与禁忌。不要把长篇原文塞进聊天再转述。
+- **`episodes` 与 `duration_s` 必须传**：插件把它们映射到 `story_requirements.chapter_count` 与 `target_runtime_s`。只写进 `zipx_update_blueprint` 的 `episodes/chapters` 不会让故事按章生成（真机：蓝图 12 集，故事 0 章、6826 字一篇）。
+- 建完再写蓝图（视觉风格/角色/禁忌），然后 `zipx_start`。顺序反了不会自动补上创意母本。
+- 如果项目**还没开工**（current_step=init、没有任何产物）但母本写错了：用 `zipx_update_project_input` 改正，**不要新建同名项目**。已开工只能走 `zipx_dispatch(modify)` / `zipx_regenerate_step`。
+- **只改剧名/简介/人物表**用 `zipx_update_story_outline`：它只改大纲字段、不重写正文，门禁会标成旧判决；不要为补一个剧名整步重写故事。改完要刷新判决用 `zipx_run_gate`（只判不生成，判官有 provider 成本、不扣用户积分）。
+- `director_archetype` 是可选的；不要一律用默认张艺谋。科幻/惊悚/冷峻写实优先 `nolan` / `fincher`，家庭/情感优先 `li_an`，民俗/色彩优先 `zhang_yimou`。不传就由后端默认。
+
+## DSH 里的付费确认（2026-11-17 真机）
+
+- 付费动作由 DSH 的 `tools/pre-execute` 拦一道：
+  - 审批策略是「询问」→ **DSH 批准卡**；
+  - 审批策略是「从不询问」（DSH 的 full access 预设就是它）→ 插件降级为**一次性确认卡**（同一个用户问题，带「允许本次 / 拒绝」）。
+  两种都是人点，模型不能自证；`zipx_connect` 会报 `付费确认` 当前走哪条。
+- **把付费动作单独放在一次 `run_code` 里，并传 `timeoutMs: 600000`**。默认 120 秒的 `run_code` 预算**包含等待批准/确认的时间**；用户多看几秒，整个程序就会被判超时。
+- **不要在同一段 `run_code` 里既 `ask_user_question` 又发起付费动作**：问题本身也会吃掉那 120 秒。问用户单独一次 `run_code`，同样传 `timeoutMs: 600000`。
+- 被拒绝或超时后只说事实（「未执行、没有扣费」），不要连续重试同一动作；先 `zipx_connect` 看确认通道，或让用户把会话权限切到「询问」。
+
 ## 常见误用（都被真机事故验证过）
 
 | 误用 | 后果 | 正确做法 |

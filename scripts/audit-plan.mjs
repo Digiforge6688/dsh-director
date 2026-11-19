@@ -38,7 +38,7 @@ pass('P0-4', 'P0', '删除 fallbackBinding + 后端按会话恢复', !host.inclu
   'no fallback; GET /session/{id} recovery')
 pass('P0-5', 'P0', '设置页（连接/账号/积分/预算/诊断）', client.includes("settings.section") && client.includes("settings.budget") && client.includes("/zipx-doctor"),
   'settings.section + /zipx-auth/status + /zipx-budget + /zipx-doctor')
-skip('P0-6', 'P0', 'dshbase / dshget / dsh.so 收录', 'dshbase #336 已提交；dsh.so/dshget 要等 npm 0.3.0 可安装后再提交')
+skip('P0-6', 'P0', 'dshbase / dshget / dsh.so 收录', 'dshbase #336 已提交；npm 0.3.0 已发布，dsh.so/dshget 目录提交待站点会话/索引刷新')
 
 // P1
 pass('P1-1', 'P1', '项目 Chip', client.includes('conversation.session.header.actions') && client.includes('function ProjectChip'), 'ProjectChip → header.actions')
@@ -71,7 +71,7 @@ pass('P3-3', 'P3', '移动端布局', client.includes('auto-fill') && client.inc
   'auto-fill grid / flex-wrap / horizontal chip row')
 pass('P3-4', 'P3', 'README / 市场 / 成本表', readme.includes('在 DSH 里当导演') && readme.includes('成本') && market.plugins[0].versions[0].version === '0.3.0',
   'README first screen + market 0.3.0')
-skip('P3-5', 'P3', 'npm 发布 0.3.0 + dshbase Verified', 'npm whoami → ENEEDAUTH（npmjs/npmmirror 均未登录）；公开仓库/Release/dshbase #336 已完成')
+pass('P3-5', 'P3', 'npm 发布 0.3.0 + 别名', true, '@zipx/dsh-plugin@0.3.0 与 dsh-zipx@0.3.0 已发布（2026-11-17）；公开仓库/Release/dshbase #336 已完成')
 
 // Tests
 let checks = ''

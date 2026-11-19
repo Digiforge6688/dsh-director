@@ -1,9 +1,9 @@
-# ZipX 导演 · DSH 插件
+# DSH导演（dsh导演）· DSH 影视创作插件
 
 > **在 DSH 里当导演，ZipX 负责拍。**
-> 一句话说清要什么，ZipX 把它拆成项目、剧本、分镜、关键帧、镜头与成片；每一步花多少、能不能过、交付什么，都在对话里看得见。
+> 精品影视、多集短剧、创意视频、带货商品视频 —— 一句话 / 小说 / 剧本进，剧本、分镜、关键帧、配音、成片出；每一步花多少、能不能过、交付什么，都在对话里看得见。
 >
-> 源码/发布：<https://github.com/Digiforge6688/zipx-dsh-plugin> · Release v0.3.0 带 tgz 资产
+> 源码/发布：<https://github.com/Digiforge6688/zipx-dsh-plugin> · 插件市场索引：<https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json>
 
 这是一个标准 DSH 组合包（`dsh.bundle`），不是网页的第二个壳。装好后：
 
@@ -14,6 +14,16 @@
 - 右侧栏有 **工作台 / 产物 / 交付 / legacy Studio** 四个 Tab；
 - 设置页有 **连接 / 账号 / 积分 / 预算 / 诊断**；
 - token 存进 **DSH Credentials**，换设备/重启仍连接；项目绑定按会话持久化，**没有全局兜底**。
+
+## 交付什么
+
+| 创作类型 | 你给它 | 它交付 |
+|---|---|---|
+| **精品影视** | 一句创意、故事大纲或参考片方向 | 有电影感的短片/品牌片：剧本、分镜、关键帧、镜头、声音、母版与交付检查单 |
+| **多集短剧** | 小说原文 / 剧本 / 分集与时长要求 | 按集推进的竖屏短剧：章节、分集、人物、场景契约、逐集成片，可继续下一集 |
+| **创意视频** | 一句话、概念或情绪板 | 15–90 秒创意短片：钩子、分镜、关键帧、配音、剪辑与字幕 |
+| **带货视频** | 商品卖点、品牌/产品、产品图、CTA | 商品/品牌视频：营销简报、卖点结构、产品一致性、镜头与成片，可导出发布包 |
+| **小说 / 剧本改编** | 原文 | 按章/按场拆解，直接进入分镜与生成，不重复写一遍故事 |
 
 ---
 
@@ -37,7 +47,7 @@
 ### 安装（npm，推荐）
 
 ~~~powershell
-dsh plugin --profile web add @zipx/dsh-plugin@0.3.0
+dsh plugin --profile web add @zipx/dsh-plugin@0.6.0
 ~~~
 
 > 普通安装的 DSH 直接用 `dsh`。如果你是在 DSH 源码 checkout 里运行（没有全局 `dsh`），把 `dsh` 换成 `pnpm dsh`，并在 checkout 根目录执行。
@@ -45,25 +55,36 @@ dsh plugin --profile web add @zipx/dsh-plugin@0.3.0
 也可以装发现别名（同一个实现包）：
 
 ~~~powershell
-dsh plugin --profile web add dsh-zipx@0.3.0
+dsh plugin --profile web add dsh-zipx@0.6.0
 ~~~
 
 装完重启 DSH Web，新会话里应当出现 `zipx_*` 工具与 `zipx-creator` 技能。
+
+### 从 DSH 插件市场安装（Discover）
+
+DSH 的市场是一个 format 1 索引；本项目自带索引，并列出精确 commit，所以**不依赖 npm 发布**也能装：
+
+1. 打开 **插件 → 发现（Discover）→ 添加索引源**；
+2. 填入：`https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
+   （GitHub 直连不通时用这个；备用：`https://raw.githubusercontent.com/Digiforge6688/zipx-dsh-plugin/main/market/index.json`）；
+3. 搜索 **DSH导演 / dsh导演 / 短剧 / 带货视频 / 分镜**，在卡片上点安装。
+
+> 索引条目固定到一个 40 位 commit，装到的就是当时验证过的那一版；升级时索引会先更新。
 
 ### 其他安装方式
 
 从公开仓库的 tag 安装（pnpm 会 clone + 运行 prepare 构建）：
 
 ~~~powershell
-dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v0.3.0
+dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v0.6.0
 ~~~
 
 从 Release 的 tgz 安装：
 
 ~~~powershell
 # 先下载：
-# https://github.com/Digiforge6688/zipx-dsh-plugin/releases/download/v0.3.0/zipx-dsh-plugin-0.3.0.tgz
-dsh plugin --profile web add .\zipx-dsh-plugin-0.3.0.tgz
+# https://github.com/Digiforge6688/zipx-dsh-plugin/releases/download/v0.6.0/zipx-dsh-plugin-0.6.0.tgz
+dsh plugin --profile web add .\zipx-dsh-plugin-0.6.0.tgz
 ~~~
 
 从本地源码安装（仅开发者；换成你自己的路径）：
@@ -81,9 +102,9 @@ dsh plugin --profile web list
 # pnpm dsh plugin --profile web list
 ~~~
 
-应当看到 `@zipx/dsh-plugin@0.3.0`。
+应当看到 `@zipx/dsh-plugin@0.6.0`。
 
-> npm 包名是 `@zipx/dsh-plugin`；市场搜索名/标题是 **dsh-zipx / ZipX 导演**。别名包 `dsh-zipx` 与主包同版本发布，装任意一个即可。
+> npm 包名是 `@zipx/dsh-plugin`（包名不可改，否则会断掉已装用户）；市场显示名统一为 **DSH导演** / **DSH Director**，搜索关键词包含 `dsh导演`、`dsh-director`、`短剧`、`带货视频`。别名包 `dsh-zipx` 与主包同版本发布，装任意一个即可。
 
 ### 连接 ZipX
 
@@ -110,7 +131,7 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 
 ### 选项目
 
-- 新会话首屏点 **「从 ZipX 项目开始」**，或侧栏 **ZipX 项目**；
+- 新会话首屏点 **「从 DSH导演开始」**，或侧栏 **DSH导演**；
 - 选一个项目 → 自动绑定到**当前会话**；
 - 标题栏 Chip 显示项目与当前步骤；点它可切换/新建。
 
@@ -158,7 +179,7 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 | 项目 Chip | `conversation.session.header.actions` |
 | 输入区状态条 | `conversation.composer.dock` |
 | 首屏入口 | `conversation.hero.options` |
-| 工具卡片 | `tool.call.toolview`（按工具名 keyed，35 个） |
+| 工具卡片 | `tool.call.toolview`（按工具名 keyed，43 个） |
 | 右侧工作台/产物/交付 | `ctx.sidebarRightTabs` + `sidebar.right.pane.tab` + `ctx.sidebarRight.openTab` |
 | 设置页 | `settings.section` |
 | 原生批准 | `tools/pre-execute` + `ui-approval` |
@@ -172,7 +193,7 @@ docker exec zipx-backend printenv DIALOGUE_CHANNELS
 
 ## 5. 命令与引用
 
-- `/zipx`：打开项目库
+- `/zipx`：打开 DSH导演项目库
 - `/zipx-status`：打开右侧工作台
 - `/zipx-doctor`：打开诊断（后端、令牌、凭据、工具数）
 - `@项目`：输入 `@` 选一个 ZipX 项目，插入引用并绑定本会话；模型看到的是 `<zipx_project id="…"/>`
@@ -215,3 +236,4 @@ npm run audit:plan     # P0–P3 逐项审计
 - 全量中英词条在 `src/client/10-locale-zh.js` / `11-locale-en.js`，`locale/*.json` 由 `sync-locale` 生成，不要手改。
 
 许可证：MIT。
+

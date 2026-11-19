@@ -39,6 +39,8 @@
       return phaseCard(t, props.block, t('state.title'), h('div', { style: S.col },
         h('div', { style: S.row }, h('span', { style: { fontWeight: 650 } }, m.title || shortId(m.project_id)), h('span', { style: Object.assign({}, S.mono, { color: C.muted }) }, shortId(m.project_id))),
         h(StepLine, { t: t, current: cur, gate: m.gate }),
+        m.current && m.current.gate_stale ? h('div', { style: { fontSize: 11.5, color: C.warn } }, t('state.gateStale')) : null,
+        m.current && m.current.gate_unverified && !m.current.gate_stale ? h('div', { style: { fontSize: 11.5, color: C.warn } }, t('state.gateUnverified')) : null,
         m.next_suggestion ? h('div', { style: { fontSize: 12 } }, t('state.next') + '：' + textOf(m.next_suggestion.label || m.next_suggestion.action || '', 160)) : null,
         legal.length ? h('div', { style: S.scrollX }, legal.map(function (label, i) { return h(Badge, { key: i, color: C.muted }, label); })) : null,
         events.length ? h('div', { style: Object.assign({}, S.mono, { color: C.muted, lineHeight: 1.6 }) }, events.map(function (e, i) {
@@ -233,6 +235,53 @@
       return phaseCard(t, props.block, m.tool || t('card.generic'), body, { kind: 'zipx-generic' });
     }
 
+    function ResultCard(props) {
+      var t = props.t; var m = metaOf(props.block) || {};
+      if (m.kind !== 'result') return h(GenericCard, props);
+      var live = useState(null);
+      var busy = useState(false);
+      var error = useState('');
+      // 签名媒体 15 分钟过期；卡片不重开也能重新取一次（同一读端点，无副作用）。
+      var refresh = function () {
+        if (!m.project_id || !m.step) return;
+        busy[1](true); error[1]('');
+        void call('/project/' + encodeURIComponent(m.project_id) + '/result?step=' + encodeURIComponent(m.step) + '&max_chars=2600&max_media=8').then(function (res) {
+          busy[1](false);
+          if (res.ok && res.json) live[1](res.json);
+          else error[1](apiErrorText(t, res));
+        });
+      };
+      var d = live[0] ? Object.assign({}, m, live[0]) : m;
+      var gate = d.gate || {};
+      var media = asArray(d.media);
+      var counts = d.counts || {};
+      var countText = Object.keys(counts).filter(function (k) { return counts[k]; }).map(function (k) { return k + ' ' + counts[k]; }).join(' · ');
+      var footer = [
+        h(Btn, { key: 'wb', onClick: function () { openRightTab('zipx-workbench', { projectId: d.project_id }); } }, t('workbench.title')),
+      ];
+      if (d.step && d.project_id) {
+        footer.push(h(Btn, { key: 'st', onClick: function () { openRightTab('zipx-studio', { projectId: d.project_id, step: d.step }); } }, t('result.openStudio')));
+        footer.push(h(Btn, { key: 'rf', ghost: true, disabled: busy[0], onClick: refresh }, busy[0] ? t('loading') : t('refresh')));
+      }
+      if (!d.has_content) {
+        return phaseCard(t, props.block, d.label || t('result.title'), h(Empty, null, d.empty_reason || t('result.empty')), { kind: 'zipx-result', footer: footer });
+      }
+      var body = h('div', { style: S.col },
+        error[0] ? h(ErrLine, null, error[0]) : null,
+        h('div', { style: S.row }, h(GateBadge, { status: gate.overall || 'unchecked', label: gateLabel(t, gate.overall) }), h('span', { style: S.mono }, String(d.step || ''))),
+        d.summary ? h('div', { style: { fontSize: 12, color: C.muted } }, textOf(d.summary, 220)) : null,
+        countText ? h('div', { style: Object.assign({}, S.mono, { color: C.muted }) }, countText) : null,
+        gate.score != null ? h('div', { style: { fontSize: 12 } }, t('result.score', { score: Number(gate.score).toFixed(2), threshold: gate.threshold == null ? '?' : gate.threshold })) : null,
+        gate.summary ? h('div', { style: { fontSize: 11.5, color: C.muted } }, textOf(gate.summary, 300)) : null,
+        asArray(gate.reasons).length ? h('div', { style: { fontSize: 11.5, color: C.fail } }, asArray(gate.reasons).map(function (r) { return '· ' + textOf(r, 160); }).join('；')) : null,
+        d.text ? h('pre', { style: S.excerpt }, d.text) : null,
+        d.truncated ? h('div', { style: { fontSize: 11.5, color: C.muted } }, t('result.truncated', { chars: d.text_chars == null ? '?' : d.text_chars })) : null,
+        media.length ? h(MediaGrid, { items: media, onOpen: function (item) { openRightTab('zipx-artifact', { projectId: d.project_id, step: d.step, path: item.path, url: item.url, kind: item.kind }); } }) : null,
+        media.length && d.media_total > media.length ? h('div', { style: { fontSize: 11.5, color: C.muted } }, t('result.mediaMore', { shown: media.length, total: d.media_total })) : null);
+      return phaseCard(t, props.block, d.label || t('result.title'), body, { kind: 'zipx-result', footer: footer });
+    }
+
+
     var SPECIFIC_CARDS = {
       zipx_project_state: StateCard,
       zipx_preview_action: PreviewCard,
@@ -246,6 +295,8 @@
       zipx_regenerate_item: DispatchCard,
       zipx_resume_step: DispatchCard,
       zipx_artifacts: ArtifactsCard,
+      zipx_step_result: ResultCard,
+      zipx_read_asset: ResultCard,
       zipx_cost: CostCard,
       zipx_delivery: DeliveryCard,
       zipx_get_locks: LocksCard,

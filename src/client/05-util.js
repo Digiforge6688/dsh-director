@@ -71,6 +71,8 @@
       link: { color: C.accent, cursor: 'pointer', textDecoration: 'none', fontSize: 12 },
       nowrap: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
       scrollX: { display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 },
+      // 2026-11-17：产物正文节选（保留换行、限高滚动，不把整章塞爆卡片）。
+      excerpt: { margin: 0, maxHeight: 220, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '6px 8px', borderRadius: 7, background: 'rgba(127,127,127,0.08)', fontFamily: 'inherit', fontSize: 12, lineHeight: 1.6 },
     };
 
     function gateColor(status) {
@@ -147,15 +149,51 @@
       } catch (e) { /* no right sidebar */ }
       return false;
     }
-    /** Buttons never write the backend: they turn intent into the user's own message. */
-    function sendToDirector(props, text) {
+    /**
+     * 面板按钮从不说"我做了"：它们只把意图变成用户自己的一条消息，由对话与批准卡决定。
+     *
+     * 关键事实（2026-11-17 查明）：`inputActions` 只发给**会话作用域**的 slot
+     * （header / composer dock / hero）；`main` 面板与右栏 tab 拿不到，而且打开 main 面板时
+     * 对话会被替换卸载 —— 所以面板按钮此前是"点了没反应"。这里做两件事：
+     *   1. 会话作用域组件把 inputActions 记到 RUNTIME（面板可从那里取）；
+     *   2. 取不到就先回对话，等它挂载后再投递（最多约 1.4 秒）。
+     */
+    function rememberInputActions(props) {
       try {
         if (props && props.inputActions && typeof props.inputActions.setDraft === 'function') {
-          props.inputActions.setDraft(String(text || ''));
-          if (typeof props.inputActions.submit === 'function') props.inputActions.submit();
-          return true;
+          RUNTIME.inputActions = props.inputActions;
         }
       } catch (e) { /* input locked */ }
+    }
+    function deliverToComposer(actions, text) {
+      if (!actions || typeof actions.setDraft !== 'function') return false;
+      try {
+        actions.setDraft(String(text || ''));
+        if (typeof actions.submit !== 'function') return false;
+        actions.submit();
+        return true;
+      } catch (e) { return false; }
+    }
+    function currentInputActions(props) {
+      var direct = props && props.inputActions;
+      if (direct && typeof direct.setDraft === 'function') return direct;
+      return RUNTIME.inputActions && typeof RUNTIME.inputActions.setDraft === 'function' ? RUNTIME.inputActions : null;
+    }
+    function sendToDirector(props, text) {
+      if (deliverToComposer(currentInputActions(props), text)) return true;
+      if (typeof setInterval !== 'function') return false;
+      // 面板里点按钮 = 想对导演说一句话：先把画面切回对话，再等输入框挂载后投递。
+      closeLibrary();
+      var tries = 0;
+      var timer = setInterval(function () {
+        tries += 1;
+        if (deliverToComposer(currentInputActions(null), text)) { clearInterval(timer); return; }
+        if (tries >= 12) {
+          clearInterval(timer);
+          // 不说"已发送"：投递失败要让用户看见，而不是以为点坏了。
+          pushNotice('没找到对话输入框：请直接在对话里说这句话 — ' + String(text || '').slice(0, 80));
+        }
+      }, 120);
       return false;
     }
 

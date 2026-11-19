@@ -6,6 +6,9 @@
       var credits = useState(null);
       var budget = useState(null);
       var doctor = useState(null);
+      var history = useState(null);
+      var pairCode = useState('');
+      var pairMsg = useState('');
       var email = useState('');
       var password = useState('');
       var name = useState('');
@@ -20,8 +23,32 @@
         void call(ACCOUNT + '/credits').then(function (res) { if (res.ok && res.json && res.json.ok !== false) credits[1](res.json); });
         void call(BUDGET).then(function (res) { if (res.ok && res.json) budget[1](res.json.budget); });
         void call(DOCTOR).then(function (res) { if (res.ok) doctor[1](res.json); });
+        void call(ACCOUNT + '/history?page=1&page_size=8').then(function (res) { if (res.ok && res.json) history[1](res.json); });
       };
       useEffect(load, []);
+      // 设备 id 由本机生成并复用（配对是"这台机器"的身份，不是账号的）。
+      var deviceId = (function () {
+        try {
+          var key = 'zipx_device_id';
+          var value = window.localStorage.getItem(key);
+          if (!value) {
+            value = 'dsh-' + Math.random().toString(16).slice(2, 10);
+            window.localStorage.setItem(key, value);
+          }
+          return value;
+        } catch (e) { return 'dsh-web'; }
+      })();
+      var connectCode = function () {
+        busy[1](true); error[1](''); pairMsg[1]('');
+        void call('/zipx-pair/connect', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: pairCode[0].trim().toUpperCase(), device_id: deviceId }),
+        }).then(function (res) {
+          busy[1](false);
+          if (res.ok && res.json && res.json.ok) { pairMsg[1](t('settings.pairOk')); pairCode[1](''); load(); return; }
+          pairMsg[1](t('settings.pairFail', { status: (res.json && res.json.status) || res.status }));
+        });
+      };
 
       var submitAuth = function () {
         busy[1](true); error[1](''); notice[1]('');
@@ -65,7 +92,16 @@
             h('div', { style: { fontSize: 12 } }, t('settings.tokenSource') + '：' + String((auth[0] && auth[0].source) || '—')),
             h('div', { style: { fontSize: 12 } }, t('settings.credentials') + '：' + ((auth[0] && auth[0].credentials) ? 'yes' : 'no')),
             h('div', { style: { fontSize: 12 } }, t('connect.expires', { expires: (auth[0] && auth[0].expires_at) || t('settings.never') })),
-            h('div', { style: { fontSize: 11.5, color: C.muted } }, t('settings.pairHint')))),
+            h('div', { style: { fontSize: 11.5, color: C.muted } }, t('settings.pairHint')),
+            h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+              h('input', {
+                style: Object.assign({}, S.input, { flex: '1 1 140px' }), value: pairCode[0],
+                placeholder: t('settings.pairCode'),
+                onChange: function (e) { pairCode[1](e.target.value); },
+              }),
+              h(Btn, { primary: true, disabled: busy[0] || !pairCode[0].trim(), onClick: connectCode }, t('settings.pairConnect'))),
+            h('div', { style: { fontSize: 11, color: C.muted } }, t('settings.pairDevice', { device: deviceId })),
+            pairMsg[0] ? h('div', { style: { fontSize: 11.5, color: C.muted } }, pairMsg[0]) : null)),
         h(Card, { title: t('settings.account') },
           me[0]
             ? h('div', { style: S.col },
@@ -83,6 +119,19 @@
           credits[0]
             ? h('div', { style: { fontSize: 13, fontWeight: 600 } }, String(credits[0].balance ?? credits[0].credits ?? '—') + ' credits')
             : h('div', { style: { fontSize: 12, color: C.muted } }, t('cost.unknown'))),
+        h(Card, { title: t('settings.usage') },
+          history[0] && asArray(history[0].data).length
+            ? h('div', { style: S.list }, asArray(history[0].data).map(function (row, i) {
+              return h('div', { key: row.id || i, style: { display: 'flex', gap: 8, fontSize: 11.5, padding: '3px 0', borderBottom: '1px solid ' + C.border } },
+                h('span', { style: { color: C.muted, width: 110, flex: '0 0 auto' } }, fmtTime(row.created_at)),
+                h('span', { style: { flex: '1 1 auto' } }, textOf(row.description || row.description_en || row.transaction_type, 80)),
+                h('span', { style: { color: Number(row.amount) < 0 ? C.fail : C.pass, fontWeight: 600 } }, String(row.amount)));
+            }))
+            : h('div', { style: { fontSize: 12, color: C.muted } }, history[0] && history[0].ok === false ? t('cost.unknown') : t('settings.noUsage'))),
+        h(Card, { title: t('settings.knowledge') },
+          h('div', { style: S.col },
+            h('div', { style: { fontSize: 11.5, color: C.muted } }, t('settings.knowledgeHint')),
+            h('div', null, h(Btn, { onClick: function () { openRightTab('zipx-knowledge', {}); } }, t('kb.title'))))),
         h(Card, { title: t('settings.budget') },
           h('div', { style: S.col },
             h(Field, { label: t('settings.budgetPerStep'), type: 'number', value: String((budget[0] && budget[0].per_step) || 0), onChange: function (v) { budget[1](Object.assign({}, budget[0] || {}, { per_step: Number(v) || 0 })); } }),

@@ -1,4 +1,5 @@
 # 构建产物与打包产物不入库（files 白名单保证它们仍能进 tarball）
 lib/
+.build/
 *.tgz
 verify-latest.log

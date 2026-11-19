@@ -29,4 +29,4 @@ window.__ModuleLoader__.load({
     var BUDGET = '/zipx-budget';
 
     /** Runtime handles captured at apply(): no React context reaches outside the factory. */
-    var RUNTIME = { ctx: null, studioUrl: '', shell: 'conversation', lastSessionId: '', pendingProject: '' };
+    var RUNTIME = { ctx: null, studioUrl: '', shell: 'conversation', lastSessionId: '', pendingProject: '', pendingCreate: null };

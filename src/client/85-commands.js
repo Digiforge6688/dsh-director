@@ -23,6 +23,20 @@
       add('zipx-doctor', 'command.doctor', 'command.doctorDesc', function () {
         if (!openRightTab('zipx-workbench', { view: 'doctor' })) openLibrary();
       });
+      // 一条命令一个入口，全部复用已有动作（不新造界面）：新建走创建向导，其余开右栏 tab。
+      add('zipx-new', 'command.new', 'command.newDesc', function () {
+        RUNTIME.pendingCreate = { mode: 'idea' };
+        if (!openLibrary()) RUNTIME.pendingCreate = null;
+      });
+      add('zipx-assets', 'command.assets', 'command.assetsDesc', function () {
+        if (!openRightTab('zipx-assets', {})) openLibrary();
+      });
+      add('zipx-know', 'command.know', 'command.knowDesc', function () {
+        if (!openRightTab('zipx-knowledge', {})) openLibrary();
+      });
+      add('zipx-deliver', 'command.deliver', 'command.deliverDesc', function () {
+        if (!openRightTab('zipx-delivery', {})) openLibrary();
+      });
     }
 
     function registerProjectTrigger(ctx, t) {

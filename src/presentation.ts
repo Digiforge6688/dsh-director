@@ -66,6 +66,8 @@ export function metaState(_args: any, value: any) {
       complete: cur.is_complete === true,
       gaps: cur.has_gaps === true,
       locked: cur.is_locked === true,
+      gate_stale: cur.gate_stale === true,
+      gate_unverified: cur.gate_unverified === true,
     },
     next_step: value?.next_step ?? '',
     gate,
@@ -121,6 +123,7 @@ export function metaDispatch(tool: string) {
 }
 
 export function metaWatch(args: any, value: any) {
+  const preview = value?.preview && typeof value.preview === 'object' ? value.preview : null
   return {
     kind: 'watch',
     project_id: args?.project_id ?? '',
@@ -136,6 +139,21 @@ export function metaWatch(args: any, value: any) {
     complete: value?.is_complete === true,
     locked: value?.is_locked === true,
     gate: value?.gates ?? 'unchecked',
+    // 2026-11-17：完成时的产物预览（阻塞模式 / job_output 里读到的结果）。
+    preview: preview ? {
+      label: preview.label ?? '',
+      summary: text(preview.summary ?? '', 200),
+      gate: preview.gate ?? 'unchecked',
+      score: preview.score ?? null,
+      threshold: preview.threshold ?? null,
+      excerpt: text(preview.excerpt ?? '', 600),
+      media_count: preview.media_count ?? 0,
+      media: asArray(preview.media).slice(0, 4).map((m: any) => ({
+        label: text(m?.label ?? '', 80),
+        kind: m?.kind || mediaKind(String(m?.url ?? '')),
+        url: mediaProxyUrl(m?.url ?? ''),
+      })),
+    } : null,
   }
 }
 
@@ -160,6 +178,72 @@ export function metaArtifacts(args: any, value: any) {
     project_id: args?.project_id ?? value?.project_id ?? '',
     steps_filter: args?.steps ?? '',
     steps,
+  }
+}
+
+export function metaResult(args: any, value: any) {
+  const counts = value?.counts && typeof value.counts === 'object' ? value.counts : {}
+  const gate = value?.gate && typeof value.gate === 'object' ? value.gate : null
+  return {
+    kind: 'result',
+    project_id: value?.project_id ?? args?.project_id ?? '',
+    step: value?.step ?? args?.step ?? '',
+    label: value?.label ?? '',
+    status: value?.status ?? '',
+    updated_at: value?.updated_at ?? '',
+    summary: text(value?.summary ?? '', 300),
+    has_content: value?.has_content === true,
+    text: text(value?.text ?? '', 2600),
+    text_source: value?.text_source ?? '',
+    text_chars: value?.text_chars ?? null,
+    truncated: value?.truncated === true,
+    counts,
+    gate: gate ? {
+      overall: gate.overall ?? 'unchecked',
+      score: gate.score ?? null,
+      threshold: gate.threshold ?? null,
+      note: text(gate.note ?? '', 160),
+      summary: text(gate.summary ?? '', 320),
+      reasons: asArray(gate.reasons).slice(0, 3).map((r: any) => text(r, 200)),
+    } : null,
+    media_total: value?.media_total ?? 0,
+    media: asArray(value?.media).slice(0, 8).map((item: any) => ({
+      path: item?.path ?? '',
+      kind: item?.kind || mediaKind(String(item?.path ?? '')),
+      label: text(item?.label ?? '', 90),
+      url: mediaProxyUrl(item?.url ?? ''),
+    })),
+    empty_reason: text(value?.empty_reason ?? '', 200),
+  }
+}
+
+/** zipx_read_asset 的卡片投影：value 是原始资产（content 可能是任意结构）。 */
+export function metaAsset(args: any, value: any) {
+  const content = value?.content && typeof value.content === 'object' ? value.content : {}
+  const textKeys = ['story_text', 'script_text', 'hook', 'chapter_text', 'scene_text']
+  let body = ''
+  for (const key of textKeys) {
+    const candidate = content[key]
+    if (typeof candidate === 'string' && candidate.trim()) { body = candidate; break }
+  }
+  return {
+    kind: 'result',
+    project_id: value?.project_id ?? args?.project_id ?? '',
+    step: value?.step ?? args?.step ?? '',
+    label: '',
+    status: value?.status ?? '',
+    updated_at: '',
+    summary: value?.truncated === true ? ('全文 ' + (value?.raw_len ?? '?') + ' 字符（已截断）') : '',
+    has_content: value?.content !== null && value?.content !== undefined,
+    text: text(body, 2400),
+    text_source: body ? 'content' : '',
+    text_chars: value?.raw_len ?? null,
+    truncated: value?.truncated === true,
+    counts: {},
+    gate: null,
+    media_total: 0,
+    media: [],
+    empty_reason: value?.content == null ? '这一步还没有产物。' : '',
   }
 }
 

@@ -1,81 +1,50 @@
-# 发布到 DSH 插件市场（P4）
+# DSH导演 · 发布到 DSH 插件市场
 
 > 对外注册：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>
 
-市场条目**不是手写的**，是 `apps/plugin-market-generator` 从已发布的包**生成**的。
-生成器会拒掉：`private: true`、`engines.dsh` 为空或写 `workspace:`、拿不到图标、没有 `dsh.bundle` 的包。
-那些理由在构建、单测、装包里都不会红——所以在本地先跑一道门禁：
+DSH 没有中心市场：一个市场就是一份 **format 1 JSON 索引**。本项目自带索引，放在
+`market/index.json`，并把安装源固定到精确 commit，所以不依赖 npm 发布也能装。
 
-```powershell
-node scripts/check-market-ready.mjs   # 21 条断言，全过才谈发布
-```
+## 一、索引地址
 
-## 一、本地分发（现在就能用，不需要发布）
+- 主地址（国内快）：`https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
+- 备用：`https://raw.githubusercontent.com/Digiforge6688/zipx-dsh-plugin/main/market/index.json`
 
-```powershell
-pnpm --dir integrations/dsh-plugin pack          # zipx-dsh-plugin-0.3.0.tgz
-pnpm dsh plugin --profile web add ./zipx-dsh-plugin-0.3.0.tgz
-```
+在 DSH 里打开 **插件 → 发现（Discover）→ 添加索引源**，粘贴上面任意一条。搜索
+**DSH导演 / dsh导演 / 短剧 / 带货视频 / 分镜** 即可安装。
 
-tarball 里已经带了 `lib/`、`cordis.patch.yml`、`locale/`、`skills/`、`docs/`、`screenshots/`、`icon.svg`、`CHANGELOG.md`——
-**装包即运行，不需要构建授权**（对比 git 源安装会要求用户允许 `prepare` 脚本执行）。
+## 二、生成与校验
 
-## 二、发布到 npm
+索引不是手写的；它从 `package.json` + `locale/<lang>.json` 的 `meta` 生成：
 
 ```powershell
 cd integrations/dsh-plugin
-node scripts/build.mjs
-node scripts/check-market-ready.mjs
-npm publish --access public        # 或 pnpm publish
+npm run build
+npm run market:check          # 名称/介绍/关键词/图标/engines 等断言
+npm run market:index -- --source git --commit <40-hex> --base-url https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market
 ```
 
-发布后，在生成器的输入列表里写一行包名：
+`--source npm` 只用于 npm 已发布同版本的情况；`--source git` 需要完整 40 位 commit。
+生成器会顺手把 `icon.svg` 复制到 `market/icon.svg`，相对索引地址解析。
 
-```text
-@zipx/dsh-plugin
-```
+## 三、发布顺序
 
-```powershell
-cd D:\DHS\deepseek-harness
-pnpm --filter @deepseek-ai/dsh-plugin-market-generator exec dsh-plugin-market-index `
-  --input packages.txt --output dist/index.json --title 'ZipX 影视创作' --description '在 DSH 里做影视创作'
-```
+1. 改 `package.json` 版本与 `locale/*.json` 的 `meta.title/description`；
+2. `npm run check`、`npm run market:check` 全绿；
+3. 提交源码，拿到 commit SHA；
+4. 用该 SHA 生成索引（`--source git`），再提交 `market/index.json`；
+5. push 到 GitHub `main`，索引地址即生效。
 
-`--inline-icon-bytes` 控制多大的图标内联成 data URL（默认 16 KiB，上限 32 KiB）；更大的图标会被写到 `icons/` 旁边并引用。
+## 四、npm / 别名
 
-托管 `dist/index.json` 到 HTTPS，然后：
+`@zipx/dsh-plugin` 是包名（不可随便改，会断掉已装用户）；显示名统一为
+**DSH导演 / DSH Director**。别名包 `alias/dsh-zipx` 与主包同版本发布。
+npm 发布由 `.github/workflows/publish-npm.yml` 在 `v*` tag 上执行，需要仓库 secret
+`NPM_TOKEN`。
 
-```powershell
-# $DSH_HOME/cordis.patch.yml
-- id: plugin-market
-  config:
-    indexes:
-      - https://<你的域名>/dsh/index.json
-```
+## 五、市场条目守则
 
-## 三、从 Git 源发布（不想发 npm 时）
-
-```text
-github:zipx/zipx-pro#v0.2.0
-```
-
-但要注意：git 源拉的是**源码**，没有任何环节跑 `build`，所以包必须自带 `prepare` 脚本（本包有：`node scripts/build.mjs`），
-且用户需要在 profile 的 `pnpm-workspace.yaml` 里显式授权该包的构建脚本执行。**优先发 tarball 或 npm**。
-
-## 四、市场条目会用到的东西（都已就位）
-
-| 字段 | 来源 |
-|---|---|
-| 标题 / 描述 | `locale/zh.json`、`locale/en.json` 的 `meta.title` / `meta.description` |
-| 图标 | `icon.svg`（`--inline-icon-bytes` 以内直接内联） |
-| 版本与兼容 | `package.json` 的 `version` 与 `engines.dsh` |
-| 详情页 | `README.md` + `docs/DETAIL.zh.md` |
-| 截图 | `screenshots/*.png`（面板真机截图） |
-| 搜索 | `keywords` 里的 `zipx` / `film` / `storyboard` / `director` / `video` |
-
-## 五、验收（发布后）
-
-1. 市场里搜 `zipx` 命中，卡片有图标与中英标题；
-2. 详情页有截图与工具清单；
-3. 点安装 → `dsh plugin --profile <name> add @zipx/dsh-plugin` → `--dump-config` 出现 `# == @zipx/dsh-plugin`；
-4. 新会话里 35 个 `zipx_*` 工具可见，侧栏出现「ZipX 创作」。
+- 标题：`DSH导演`（zh）/ `DSH Director`（en），与 locale meta 完全一致；
+- 介绍必须覆盖交付结果：**精品影视、多集短剧、创意视频、带货视频**；
+- 关键词必须含 `dsh导演`、`dsh-director` 与四类交付词，保证搜索命中；
+- 版本必须与 `package.json` 一致，安装源必须是精确 commit 或已发布 npm 版本。

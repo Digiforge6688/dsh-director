@@ -27,7 +27,7 @@ const report = {}
 await page.route('**/zipx-api/projects**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' }))
 await page.goto(ORIGIN + '/?token=' + encodeURIComponent(AUTH), { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(4500)
-await page.locator('button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first().click().catch(() => {})
+await page.locator('button[aria-label="DSH导演"], button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first().click().catch(() => {})
 await page.waitForTimeout(3000)
 await page.screenshot({ path: join(OUT, '05-projects-not-ready.png') })
 report.notReadyLines = (await page.evaluate(() => document.body.innerText)).split('\n').filter(line => /未就绪|按项目 ID 打开|粘贴 project_id/.test(line))

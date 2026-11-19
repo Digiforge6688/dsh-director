@@ -15,15 +15,15 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
-  metaArtifacts, metaBind, metaConnect, metaCost, metaDelivery, metaDispatch, metaGeneric,
-  metaLocks, metaPreview, metaProjects, metaState, metaWatch,
+  metaArtifacts, metaAsset, metaBind, metaConnect, metaCost, metaDelivery, metaDispatch, metaGeneric,
+  metaLocks, metaPreview, metaProjects, metaResult, metaState, metaWatch,
 } from './presentation.js'
 
 export const name = 'zipx-director'
@@ -43,6 +43,7 @@ interface ZipxApi {
   get(path: string): Promise<unknown>
   post(path: string, body: unknown): Promise<unknown>
   put(path: string, body: unknown): Promise<unknown>
+  patch(path: string, body: unknown): Promise<unknown>
 }
 
 /** 进程内活令牌：配对成功后立刻生效，**不需要重启 DSH**（工具有的请求读一次）。 */
@@ -367,6 +368,7 @@ function client(config: ZipxConfig): ZipxApi {
     get: path => call(path, { method: 'GET' }),
     post: (path, body) => call(path, { method: 'POST', body: JSON.stringify(body) }),
     put: (path, body) => call(path, { method: 'PUT', body: JSON.stringify(body) }),
+    patch: (path, body) => call(path, { method: 'PATCH', body: JSON.stringify(body) }),
   }
 }
 
@@ -381,7 +383,7 @@ function renderState(v: any): string {
   const lines = [
     `项目「${v?.project?.title ?? ''}」（${v?.project?.id ?? ''}）`,
     `当前步骤：${cur.label ?? cur.step ?? ''}（${cur.step ?? ''}）— ${cur.lifecycle ?? ''}，产出 ${cur.produced ?? '?'}/${cur.expected ?? '?'}${running}`,
-    `门禁总体：${gates}`,
+    `门禁总体：${gates}${cur?.gate_stale ? '（旧判决：产物在判决之后被改过，需要重新质检）' : (cur?.gate_unverified ? '（旧门禁没有内容指纹，未确认；可重新质检）' : '')}`,
     `本轮可做：${legal}`,
     v?.next_suggestion ? `建议下一步：${v.next_suggestion.label}（${v.next_suggestion.action}）` : '',
   ]
@@ -409,7 +411,7 @@ const MAX_BODY_BYTES = 2 * 1024 * 1024
 /** 透传的请求头（Range 是成片拖进度条的关键）。 */
 const FORWARD_REQUEST_HEADERS = ['accept', 'content-type', 'range', 'if-range', 'if-none-match']
 /** 透传的响应头：206/Content-Range/Accept-Ranges 原样给浏览器。 */
-const FORWARD_RESPONSE_HEADERS = ['content-type', 'accept-ranges', 'content-range', 'cache-control', 'etag', 'last-modified']
+const FORWARD_RESPONSE_HEADERS = ['content-type', 'accept-ranges', 'content-range', 'cache-control', 'etag', 'last-modified', 'content-disposition']
 
 function requestIsSameOrigin(req: IncomingMessage): boolean {
   const host = String(req.headers.host || '')
@@ -441,10 +443,10 @@ function sendProxyJson(res: ServerResponse, status: number, body: Record<string,
   res.end(JSON.stringify(body))
 }
 
-function readProxyBody(req: IncomingMessage): Promise<Buffer> {
+function readProxyBody(req: IncomingMessage, limit: number = MAX_BODY_BYTES): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const declared = Number.parseInt(String(req.headers['content-length'] ?? ''), 10)
-    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    if (Number.isFinite(declared) && declared > limit) {
       reject(new ProxyBodyTooLarge())
       return
     }
@@ -452,7 +454,7 @@ function readProxyBody(req: IncomingMessage): Promise<Buffer> {
     let size = 0
     req.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY_BYTES) {
+      if (size > limit) {
         reject(new ProxyBodyTooLarge())
         req.destroy()
         return
@@ -478,6 +480,14 @@ export interface ProxyRouteOptions {
   apiPath?: string
   /** 是否放行 /files/download 媒体字节（只有 director 那一条需要）。 */
   media?: boolean
+  /** 只读代理：非 GET 一律 405（协作/模板这类只读面，写入口留在 Studio）。 */
+  readOnly?: boolean
+  /** 请求体上限（字节）。知识库上传要放行 multipart，默认仍只承载 JSON。 */
+  maxBodyBytes?: number
+  /** 大文件上传：不把请求体读进内存，边读边转给上游（maxBodyBytes 仍是硬上限）。 */
+  streamBody?: boolean
+  /** 放行 DELETE（只有团队管理需要；其余代理保持只读语义之外的最小方法集）。 */
+  allowDelete?: boolean
 }
 
 export function createZipxApiRoute(options: ProxyRouteOptions) {
@@ -489,8 +499,17 @@ export function createZipxApiRoute(options: ProxyRouteOptions) {
     path: prefix,
     async handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const method = String(req.method ?? 'GET').toUpperCase()
-      if (method !== 'GET' && method !== 'POST' && method !== 'PUT') {
+      // DELETE 只服务团队管理（移除成员/撤销邀请）；别的代理不放行，避免扩大写面。
+      if (method !== 'GET' && method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
         sendProxyJson(res, 405, { ok: false, error: 'method_not_allowed' })
+        return
+      }
+      if (method === 'DELETE' && options.allowDelete !== true) {
+        sendProxyJson(res, 405, { ok: false, error: 'method_not_allowed' })
+        return
+      }
+      if (options.readOnly === true && method !== 'GET') {
+        sendProxyJson(res, 405, { ok: false, error: 'read_only', message: '这条代理只读：写操作请在 Studio 里做。' })
         return
       }
       // 2026-11-13：这个代理会替调用方带上配对令牌，所以它只服务本机浏览器。
@@ -548,17 +567,45 @@ export function createZipxApiRoute(options: ProxyRouteOptions) {
       // 客户端不必也不该带 token：这里统一覆盖，前端拿不到凭证。
       if (token !== '') headers.Authorization = 'Bearer ' + token
 
-      let body: Buffer | undefined
-      if (method === 'POST' || method === 'PUT') {
-        try {
-          body = await readProxyBody(req)
-        } catch (error) {
-          if (error instanceof ProxyBodyTooLarge) {
-            sendProxyJson(res, 413, { ok: false, error: 'payload_too_large', limit: MAX_BODY_BYTES })
+      const bodyLimit = Number(options.maxBodyBytes) > 0 ? Number(options.maxBodyBytes) : MAX_BODY_BYTES
+      let body: any
+      let bodyTooLarge = false
+      if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+        if (options.streamBody === true) {
+          // 500MB 的视频不能一次读进内存：声明长度先挡，再边读边数（chunked 也挡得住）。
+          const declared = Number.parseInt(String(req.headers['content-length'] ?? ''), 10)
+          if (Number.isFinite(declared) && declared > bodyLimit) {
+            sendProxyJson(res, 413, { ok: false, error: 'payload_too_large', limit: bodyLimit })
             return
           }
-          sendProxyJson(res, 400, { ok: false, error: 'body_read_failed' })
-          return
+          let seen = 0
+          const counter = new Transform({
+            transform(chunk: Buffer, _encoding: string, done: (error?: Error | null, data?: Buffer) => void): void {
+              seen += chunk.length
+              if (seen > bodyLimit) {
+                bodyTooLarge = true
+                done(new ProxyBodyTooLarge())
+                return
+              }
+              done(null, chunk)
+            },
+          })
+          req.on('error', (error: unknown) => {
+            counter.destroy(error instanceof Error ? error : new Error(String(error)))
+          })
+          req.pipe(counter)
+          body = Readable.toWeb(counter) as unknown as ReadableStream
+        } else {
+          try {
+            body = await readProxyBody(req, bodyLimit)
+          } catch (error) {
+            if (error instanceof ProxyBodyTooLarge) {
+              sendProxyJson(res, 413, { ok: false, error: 'payload_too_large', limit: bodyLimit })
+              return
+            }
+            sendProxyJson(res, 400, { ok: false, error: 'body_read_failed' })
+            return
+          }
         }
       }
 
@@ -572,6 +619,11 @@ export function createZipxApiRoute(options: ProxyRouteOptions) {
       // 但把话说清楚：这是连接级失败，请求可能没送达。
       const sendUpstreamFailed = (error: unknown): void => {
         res.off('close', onClose)
+        if (options.streamBody === true && !req.destroyed) req.destroy()
+        if (bodyTooLarge) {
+          sendProxyJson(res, 413, { ok: false, error: 'payload_too_large', limit: bodyLimit })
+          return
+        }
         const message = error instanceof Error ? error.message : String(error)
         ctxLoggerWarn('zipx api proxy upstream failed: ' + target + ' — ' + message)
         sendProxyJson(res, 502, {
@@ -585,12 +637,14 @@ export function createZipxApiRoute(options: ProxyRouteOptions) {
             : '写请求没有自动重试：请求可能没有送达。付费动作请带 idempotency_key 再试一次。',
         })
       }
+      const init: RequestInit & { duplex?: 'half' } = { method, headers, body, signal: controller.signal }
+      if (options.streamBody === true) init.duplex = 'half'
       try {
-        upstream = await fetch(target, { method, headers, body, signal: controller.signal })
+        upstream = await fetch(target, init)
       } catch (error) {
         if (method !== 'GET') { sendUpstreamFailed(error); return }
         try {
-          upstream = await fetch(target, { method, headers, body, signal: controller.signal })
+          upstream = await fetch(target, init)
         } catch (retryError) {
           sendUpstreamFailed(retryError)
           return
@@ -637,7 +691,8 @@ export function createZipxApiRoute(options: ProxyRouteOptions) {
  * （creative-os 的写端点只会给面板带来风险，面要不到）。
  */
 export function createZipxOsRoute(options: ProxyRouteOptions) {
-  return createZipxApiRoute({ ...options, path: '/zipx-os', apiPath: '/api/v3/creative-os', media: false })
+  // 只读是这条路由的契约（见上方注释）：creative-os 的写端点不经过浏览器。
+  return createZipxApiRoute({ ...options, path: '/zipx-os', apiPath: '/api/v3/creative-os', media: false, readOnly: true })
 }
 
 function ctxLoggerWarn(message: string): void {
@@ -798,6 +853,17 @@ export function createZipxAccountRoute(options: {
             return
           }
           const result = await upstream('/api/v1/credits/balance', { method: 'GET', auth: true })
+          sendProxyJson(res, result.ok ? 200 : (result.status || 502), result.json ?? { ok: false, message: human(result) })
+          return
+        }
+        if (suffix === '/history') {
+          if (token === '') {
+            sendProxyJson(res, 200, { ok: false, code: 'not_signed_in' })
+            return
+          }
+          const page = Math.max(1, Number(url.searchParams.get('page') || 1) || 1)
+          const size = Math.min(50, Math.max(1, Number(url.searchParams.get('page_size') || 10) || 10))
+          const result = await upstream('/api/v1/credits/history?page=' + page + '&page_size=' + size, { method: 'GET', auth: true })
           sendProxyJson(res, result.ok ? 200 : (result.status || 502), result.json ?? { ok: false, message: human(result) })
           return
         }
@@ -976,7 +1042,15 @@ export function createZipxEmbedRoute(options: {
  * Safety: only the backend's file paths (or an explicit ZIPX_MEDIA_HOSTS list)
  * are accepted — never an open proxy.
  */
-export function createZipxMediaRoute(options: { baseUrl: () => string }) {
+export function createZipxMediaRoute(options: {
+  baseUrl: () => string
+  /**
+   * Host 侧令牌：v5 签名媒体端点同时要求登录态（签名只证明"这条链接是这个项目签的"）。
+   * 浏览器 <img>/<video> 带不了 Authorization，所以由这条同源代理补上；**只发给配置的
+   * 后端 origin**，绝不发给外站。
+   */
+  token?: () => string | Promise<string>
+}) {
   const prefix = '/zipx-media'
 
   function allowedHost(host: string, base: URL): boolean {
@@ -993,6 +1067,9 @@ export function createZipxMediaRoute(options: { baseUrl: () => string }) {
     return pathname.startsWith('/api/v1/files/')
       || pathname.startsWith('/files/')
       || pathname.startsWith('/api/v1/media/')
+      // 契约 v5 的签名媒体入口（/artifacts?media=1 与交付 media_url 都指到这里）。
+      // 2026-11-17 真机：缺这一条时所有产物预览都 403 media_target_rejected。
+      || pathname.startsWith('/api/v3/director/project/')
   }
 
   function target(raw: string): URL | null {
@@ -1039,7 +1116,7 @@ export function createZipxMediaRoute(options: { baseUrl: () => string }) {
         return
       }
       if (!sameOrigin(req)) {
-        sendProxyJson(res, 403, { ok: false, code: 'not_same_origin', message: '/zipx-media 只服务同一个 DSH 页面（它只转发签名媒体，不注入令牌）。' })
+        sendProxyJson(res, 403, { ok: false, code: 'not_same_origin', message: '/zipx-media 只服务同一个 DSH 页面（它只转发 ZipX 后端的签名媒体）。' })
         return
       }
       let url: URL
@@ -1064,6 +1141,16 @@ export function createZipxMediaRoute(options: { baseUrl: () => string }) {
         const value = req.headers[name]
         const flat = Array.isArray(value) ? value[0] : value
         if (typeof flat === 'string' && flat) headers[name] = flat
+      }
+      // v5 签名 URL 仍然要登录态；只有发往配置后端的请求补 Bearer，外站永远拿不到令牌。
+      try {
+        const backendOrigin = new URL(String(options.baseUrl() || 'http://localhost:8000'))
+        if (upstream.host === backendOrigin.host && options.token) {
+          const token = String((await options.token()) || '')
+          if (token) headers.authorization = 'Bearer ' + token
+        }
+      } catch (error) {
+        console.warn('[zipx-director] media token injection skipped: ' + String((error as any)?.message || error))
       }
       const controller = new AbortController()
       const onClose = () => controller.abort()
@@ -1270,7 +1357,12 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
 
   async function estimateFor(name: string, args: any): Promise<{ credits: number | null; balance: number | null; currency: string; projectId: string; step: string }> {
     let projectId = String(args?.project_id || '')
-    const step = String(args?.step || args?.step_type || args?.action_params?.step || '')
+    let step = String(args?.step || args?.step_type || args?.action_params?.step || '')
+    // 2026-11-17：zipx_start 没有 step 参数，旧实现让批准卡显示「费用未知」。
+    // idea2video 的第一个生成步固定是 story（约 10 credits）；先给这个预估，
+    // 比让用户在「不知道要花多少」的卡上点允许要好。standalone 项目若第一步不是
+    // story，预估会落到 null（后端没有该步固定价），仍如实说未知。
+    if (!step && (name === 'zipx_start' || name === 'zipx_start_episode')) step = 'story'
     if (!projectId) {
       try { projectId = await resolveProject(args, {}) } catch { projectId = '' }
     }
@@ -1299,6 +1391,87 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       : 'ZipX will run a paid generation (' + name + '), ' + credits + balance + '. It runs once after you allow it.'
   }
 
+  /**
+   * 本会话的付费确认通道。审批策略是 never（DSH 的 full access 预设就是它）时，
+   * 原生批准卡会**确定性地拒绝**，所以降级到用户问题的一次性确认卡——仍然是
+   * 一个人点「允许本次」，不是模型自证。两者都不可用时拒绝，绝不放行。
+   *
+   * 2026-11-17 真机：E2E 会话被切到「从不询问」，zipx_start 被
+   * the user rejected tool 拒掉，而模型无法区分「人拒绝」与「策略拒绝」。
+   */
+  function userQuestionsChannel(): any {
+    try { return (ctx as any).get('userQuestions') } catch { return undefined }
+  }
+
+  function paidConfirmationMode(exec: any): 'native' | 'question' | 'deny' {
+    const approval = approvalChannel()
+    if (approval) {
+      try {
+        const session = exec && exec.agent && exec.agent.session
+        const override = session && typeof approval.overrideOf === 'function' ? approval.overrideOf(session) : undefined
+        const configured = approval && approval.config && approval.config.policy
+        const policy = override || configured || 'ask'
+        if (policy !== 'never') return 'native'
+      } catch { return 'native' }
+    }
+    return userQuestionsChannel() ? 'question' : 'deny'
+  }
+
+  function paidDetail(zh: boolean, name: string, cost: any, projectId: string, step: string): string {
+    const credits = cost.credits === null
+      ? (zh ? '费用未知（后端未返回预估）' : 'cost unknown (backend returned no estimate)')
+      : ('约 ' + cost.credits + ' ' + cost.currency)
+    const balance = cost.balance === null ? '' : (zh ? '，余额 ' + cost.balance : ', balance ' + cost.balance)
+    const lines = zh
+      ? ['动作：' + name, '费用：' + credits + balance, projectId ? '项目：' + projectId : '', step ? '步骤：' + step : '', '允许后只执行一次；拒绝不产生费用。']
+      : ['Action: ' + name, 'Cost: ' + credits + balance, projectId ? 'project: ' + projectId : '', step ? 'step: ' + step : '', 'It runs once after you allow it; denying costs nothing.']
+    return lines.filter(Boolean).join(String.raw`\n`)
+  }
+
+  async function askOneTimeConfirmation(exec: any, name: string, cost: any): Promise<{ ok: boolean; reason?: string }> {
+    const questions = userQuestionsChannel()
+    if (!questions || typeof questions.ask !== 'function' || !exec || !exec.agent) {
+      return { ok: false, reason: '当前会话没有可用的付费确认通道（DSH 批准卡与一次性确认卡都不可用），付费动作被拒绝。请把会话权限切到「询问」后重试。' }
+    }
+    const zh = language !== 'en'
+    const approve = zh ? '允许本次' : 'Allow this time'
+    const reject = zh ? '拒绝' : 'Deny'
+    const question = zh ? ('允许 ZipX 执行这次付费生成（' + name + '）吗？') : ('Allow ZipX to run this paid generation (' + name + ')?')
+    const detail = paidDetail(zh, name, cost, cost.projectId, cost.step)
+    let answer: any
+    try {
+      answer = await questions.ask({
+        agent: exec.agent,
+        signal: exec.signal,
+        questions: [{
+          id: 'zipx-paid-confirm',
+          question,
+          detail,
+          options: [{ label: approve }, { label: reject }],
+          intent: {
+            kind: 'approval',
+            approve,
+            reject,
+            subject: { name: 'ZipX' },
+            display: {
+              question: { en: 'Allow this ZipX paid generation?', zh: '允许这次 ZipX 付费生成吗？' },
+              detail: { en: paidDetail(false, name, cost, cost.projectId, cost.step), zh: detail },
+              approve: { en: 'Allow this time', zh: '允许本次' },
+            },
+          },
+        }],
+      })
+    } catch (error: any) {
+      const msg = String(error && error.message ? error.message : error)
+      return { ok: false, reason: '确认卡没有完成（' + msg + '），付费动作被拒绝。没有产生费用。' }
+    }
+    const items = Array.isArray(answer && answer.answers) ? answer.answers : []
+    const item = items.find((a: any) => a && a.id === 'zipx-paid-confirm')
+    const chosen = item && !item.custom && Array.isArray(item.selected) && item.selected.length === 1 ? item.selected[0] : ''
+    if (chosen === approve) return { ok: true }
+    return { ok: false, reason: '用户在确认卡上拒绝了这次付费动作。没有产生费用。' }
+  }
+
   if (typeof (ctx as any).on === 'function') {
     (ctx as any).on('tools/pre-execute', async (exec: any, next: () => Promise<any>) => {
       const name = String(exec?.name || '')
@@ -1320,21 +1493,28 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       if (cost.credits !== null && cost.projectId) {
         pendingCharges.set(exec, { credits: cost.credits, project_id: cost.projectId })
       }
-      const approval = approvalChannel()
-      if (!approval) {
-        if (config?.allowUnconfirmed === true || String(process.env.ZIPX_ALLOW_UNCONFIRMED || '') === '1') return next()
+      const mode = paidConfirmationMode(exec)
+      if (mode === 'native') {
         return {
-          kind: 'deny',
-          reason: '当前 DSH profile 没有批准通道（ui-approval），付费动作被拒绝。请在该 profile 里启用批准，或用 ZIPX_ALLOW_UNCONFIRMED=1 显式放行（不推荐）。',
+          kind: 'ask',
+          reason: paidLine(true, name, cost),
+          displayReason: {
+            zh: paidLine(true, name, cost),
+            en: paidLine(false, name, cost),
+          },
         }
       }
+      // 显式放行（ZIPX_ALLOW_UNCONFIRMED / allowUnconfirmed）只对「没有原生批准卡」
+      // 的会话生效；它不能把交互式 ask 策略降级成静默执行。
+      if (config?.allowUnconfirmed === true || String(process.env.ZIPX_ALLOW_UNCONFIRMED || '') === '1') return next()
+      if (mode === 'question') {
+        const confirmed = await askOneTimeConfirmation(exec, name, cost)
+        if (confirmed.ok) return next()
+        return { kind: 'deny', reason: confirmed.reason || '付费确认没有完成，动作被拒绝。' }
+      }
       return {
-        kind: 'ask',
-        reason: paidLine(true, name, cost),
-        displayReason: {
-          zh: paidLine(true, name, cost),
-          en: paidLine(false, name, cost),
-        },
+        kind: 'deny',
+        reason: '当前会话没有批准通道，也没有可用的一次性确认卡；付费动作被拒绝。请把会话权限切到「询问」后重试。',
       }
     })
     ;(ctx as any).on('tools/result', (exec: any, result: any) => {
@@ -1365,6 +1545,36 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     // 对话记录的只读代理（面板把 turn 画成聊天记录）。没有它，刷新一次就丢掉整段对话。
     scope.webServer.register(createZipxOsRoute({ baseUrl: () => baseUrl, token: () => resolveToken(config) }))
     console.log('[zipx-director] /zipx-os proxy -> ' + baseUrl + '/api/v3/creative-os')
+    // 创作者个人知识库（账号级）：/api/v3/creator/*。
+    // 文档 25MB / 图片 10MB / 音频 50MB / 视频 500MB（后端各自把关）；视频走流式，
+    // 代理不把整包读进内存，只做总量硬上限（560MB 留 multipart 余量）。
+    scope.webServer.register(createZipxApiRoute({
+      baseUrl: () => baseUrl, token: () => resolveToken(config), path: '/zipx-kb', apiPath: '/api/v3/creator', media: false,
+      maxBodyBytes: 560 * 1024 * 1024,
+      streamBody: true,
+    }))
+    console.log('[zipx-director] /zipx-kb proxy -> ' + baseUrl + '/api/v3/creator (stream)')
+    // 团队协作：/api/v2/team/*（成员 / 邀请 / 角色 / 移除）。只转发 JSON，不承载上传。
+    scope.webServer.register(createZipxApiRoute({
+      baseUrl: () => baseUrl, token: () => resolveToken(config), path: '/zipx-team', apiPath: '/api/v2/team', media: false,
+      allowDelete: true,
+    }))
+    console.log('[zipx-director] /zipx-team proxy -> ' + baseUrl + '/api/v2/team')
+    // 商业垂直：/api/v3/verticals/*（营销简报 / 产品图 / 产品锁）。产品图 ≤15MB。
+    scope.webServer.register(createZipxApiRoute({
+      baseUrl: () => baseUrl, token: () => resolveToken(config), path: '/zipx-verticals', apiPath: '/api/v3/verticals', media: false,
+      maxBodyBytes: 20 * 1024 * 1024,
+    }))
+    console.log('[zipx-director] /zipx-verticals proxy -> ' + baseUrl + '/api/v3/verticals')
+    // 模板目录（创作模板 = ZipX 的设计系统）：只读。
+    scope.webServer.register(createZipxApiRoute({
+      baseUrl: () => baseUrl, token: () => resolveToken(config), path: '/zipx-meta', apiPath: '/api/v3/verticals', media: false, readOnly: true,
+    }))
+    // 协作（剧组）：只读，写操作留在 Studio。
+    scope.webServer.register(createZipxApiRoute({
+      baseUrl: () => baseUrl, token: () => resolveToken(config), path: '/zipx-collab', apiPath: '/api/v4/collab', media: false, readOnly: true,
+    }))
+    console.log('[zipx-director] /zipx-meta (verticals) · /zipx-collab (v4 collab) 只读')
     // 账户：注册/登录/退出/额度/资料。密码只过本机代理，令牌留在 Host 侧。
     scope.webServer.register(createZipxAccountRoute({
       baseUrl: () => baseUrl,
@@ -1386,7 +1596,7 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     console.log('[zipx-director] /zipx-embed/url -> ' + baseUrl + '/api/v3/director/project/{id}/embed-code')
 
     // 媒体 Range 代理：签名 URL 的后端 origin 往往只在 Host 可达（手机打不开 localhost）。
-    scope.webServer.register(createZipxMediaRoute({ baseUrl: () => baseUrl }))
+    scope.webServer.register(createZipxMediaRoute({ baseUrl: () => baseUrl, token: () => resolveToken(config) }))
     console.log('[zipx-director] /zipx-media?u=… -> Range proxy (same-origin)')
 
     // 连接/诊断/预算：设置页与 /zipx-doctor 的只读事实源。
@@ -1565,7 +1775,11 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     output: {
       schema: { type: 'json' },
       presentationMeta: metaDispatch('zipx_start'),
-      render: (_a: unknown, v: any) => [{ type: 'text', text: `已启动：${v?.status ?? 'ok'}（${v?.project_id ?? ''}）` }],
+      render: (_a: unknown, v: any) => {
+        const est = v?.estimate_calls === null || v?.estimate_calls === undefined ? '费用未知' : ('预估 ' + v.estimate_calls + ' credits')
+        const bal = v?.balance === null || v?.balance === undefined ? '' : ('，余额 ' + v.balance)
+        return [{ type: 'text', text: `已启动：${v?.status ?? 'ok'}（${v?.project_id ?? ''}）；${est}${bal}。完成与否用 zipx_watch_step 确认；到终态后调 zipx_step_result 把产物放回对话。` }]
+      },
     },
     async execute(args: { project_id: string }) {
       return api.post(`/api/v3/director/project/${encodeURIComponent(args.project_id)}/start`)
@@ -1591,7 +1805,7 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
           ? `已确认推进：当前步骤 ${v?.current_step ?? '?'}`
           : v?.advanced === false
             ? `**没有推进**（仍停在 ${v?.current_step ?? '?'} / ${v?.lifecycle ?? '?'}）：${v?.reason ?? '后台没有把这一步推出去'}`
-            : '确认已受理（后台执行）。是否真的推进，用 zipx_watch_step 看真实状态。',
+            : '确认已受理（后台执行）。是否真的推进，用 zipx_watch_step 看真实状态；下一步跑完后调 zipx_step_result 看产物。',
       }],
     },
     async execute(args: { project_id: string; step: string }) {
@@ -1775,28 +1989,44 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     description: [
       '盯住某个步骤直到真实状态变化（不读旧对话表，直接读 ZipX 后端 WorkState 事实）。',
       '默认启动 DSH 后台任务并立即返回 job id：进度在标题栏任务列表里，完成会通知模型，不阻塞对话。',
-      '终态：当前步骤已不是该步（= 已推进）／该步 is_complete（等待确认）／lifecycle 失败。',
+      '完成通知会带这一步的产物摘要与正文节选；收到后用 zipx_step_result 把结果卡片显示给用户。',
+      '终态：当前步骤已不是该步（= 已推进）／该步 is_complete／lifecycle=awaiting_confirm（等待确认）／lifecycle 失败。',
       '没有 jobs 服务的 profile 会退回阻塞等待（如实说明）。',
     ].join(''),
     parameters: {
       project_id: { type: 'string', required: true },
       step: { type: 'string', required: true, description: '正在执行的步骤 id' },
-      max_seconds: { type: 'integer', description: '最长等待秒数，默认 300' },
+      max_seconds: { type: 'integer', description: '最长等待秒数，默认 1800（30 分钟）；长步骤可显式加长' },
     },
     output: {
       schema: { type: 'json' },
       presentationMeta: metaWatch,
-      render: (_a: unknown, v: any) => [{
-        type: 'text',
-        text: v?.mode === 'background' || v?.job_id
-          ? `已派发后台跟踪（job ${v?.job_id ?? '?'}）：完成会通知，不需要轮询。取消只停止跟踪，后端可能仍在生成。`
-          : `当前 ${v?.current_step ?? '?'} / ${v?.lifecycle ?? '?'} / 产出 ${v?.produced ?? '?'}/${v?.expected ?? '?'}${v?.is_locked ? '（生成中）' : ''}，门禁 ${v?.gates ?? 'unchecked'}${v?.timed_out ? '｜已到等待上限，**没等到终态**（不等于完成）' : ''}`,
-      }],
+      render: (_a: unknown, v: any) => {
+        if (v?.mode === 'background' || v?.job_id) {
+          return [{ type: 'text', text: `已派发后台跟踪（job ${v?.job_id ?? '?'}）：完成会通知，不需要轮询。取消只停止跟踪，后端可能仍在生成。` }]
+        }
+        const base = `当前 ${v?.current_step ?? '?'} / ${v?.lifecycle ?? '?'} / 产出 ${v?.produced ?? '?'}/${v?.expected ?? '?'}${v?.is_locked ? '（生成中）' : ''}，门禁 ${v?.gates ?? 'unchecked'}${v?.timed_out ? '｜已到等待上限，**没等到终态**（不等于完成）' : ''}`
+        const p = v?.preview
+        if (!p) return [{ type: 'text', text: base }]
+        // 终态：把"生成了什么"写进回执（不是只有 1/1）。
+        const gate = p.gate && p.gate !== 'unchecked'
+          ? '门禁 ' + p.gate + (p.score == null ? '' : '（' + Number(p.score).toFixed(2) + '/' + (p.threshold ?? '?') + '）')
+          : '门禁未检查'
+        return [{
+          type: 'text',
+          text: [
+            (p.label || v?.current_step || '') + ' 完成 · ' + (p.summary || '已生成') + ' · ' + gate +
+              (p.media_count ? (' · 媒体 ' + p.media_count + ' 个') : ''),
+            p.excerpt ? ('节选：' + String(p.excerpt).replace(/\s+/g, ' ').slice(0, 240)) : '',
+            '（卡片里可看/播放媒体；完整产物用 zipx_step_result）',
+          ].filter(Boolean).join('\n'),
+        }]
+      },
     },
     async execute(args: { project_id: string; step: string; max_seconds?: number }, exec: any) {
       const projectId = String(args.project_id)
       const step = String(args.step)
-      const maxSeconds = Number(args.max_seconds ?? 300)
+      const maxSeconds = Number(args.max_seconds ?? 1800)
       const jobs = (() => { try { return (ctx as any).get('jobs') } catch { return undefined } })()
       if (jobs && typeof jobs.start === 'function') {
         const owner = keyOf(exec)
@@ -1818,8 +2048,21 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
                   },
                 })
                 if (result?.stopped) return { status: 'killed', detail: '已请求中止；已发出的付费调用可能仍完成', result: JSON.stringify(result) }
-                const detail = (result?.current_step || '') + ' · ' + (result?.lifecycle || '') + ' · ' + (result?.produced ?? '?') + '/' + (result?.expected ?? '?')
-                try { job.append(detail + '\n') } catch { /* ring closed */ }
+                const preview = result?.preview
+                const stateLine = (result?.current_step || '') + ' · ' + (result?.lifecycle || '') + ' · ' + (result?.produced ?? '?') + '/' + (result?.expected ?? '?')
+                const timedOut = Boolean(result?.timed_out)
+                // 完成回执先说"产出了什么"，再说状态：用户/模型第一眼要看到结果，不是计数器。
+                const detail = (timedOut ? '未到终态（等待上限，不等于完成）· ' : '') + (preview
+                  ? (preview.label + ' 完成 · ' + (preview.summary || '已生成')
+                     + ' · 门禁 ' + (preview.gate || 'unchecked')
+                     + (preview.media_count ? (' · 媒体 ' + preview.media_count + ' 个') : '')
+                     + ' · ' + stateLine)
+                  : stateLine)
+                try {
+                  job.append(detail + '\n')
+                  if (preview) job.append('看完整产物：zipx_step_result(step="' + String(step) + '")；卡片可看/播放媒体。\n')
+                  if (timedOut && !preview) job.append('后台仍在执行；要继续盯请再调 zipx_watch_step(step="' + String(step) + '", max_seconds=...)。\n')
+                } catch { /* ring closed */ }
                 return { status: 'completed', detail, result: JSON.stringify(result) }
               })().catch((error: any) => ({ status: 'failed', detail: String(error?.message || error) }))
               return {
@@ -1943,15 +2186,20 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     parameters: {
       project_id: { type: 'string', required: true },
       step: { type: 'string', required: true, description: '步骤 id，如 story/script/campaign_brief/episode_design' },
+      max_chars: { type: 'integer', description: '正文显示上限（默认 12000，最大 40000；故事全文约 1.6 万字符）' },
     },
     output: {
       schema: { type: 'json' },
-      render: (_a: unknown, v: any) => [{
-        type: 'text',
-        text: v?.content == null
-          ? `（${v?.step ?? ''} 无产物）`
-          : `${v?.step ?? ''} 产物（${v?.raw_len ?? '?'} 字符${v?.truncated ? '，已截断' : ''}）：` + JSON.stringify(v.content).slice(0, 6000),
-      }],
+      presentationMeta: metaAsset,
+      render: (args: any, v: any) => {
+        if (v?.content == null) return [{ type: 'text', text: `（${v?.step ?? ''} 无产物）` }]
+        // 2026-11-17：以前这里直接 JSON.stringify 前 6000 字 —— 故事 1.6 万字、剧本 5 万字符，
+        // 模型看到的是被截断的 JSON 结构而不是正文。先取人能读的正文，取不到才回退 JSON。
+        const limit = Math.max(1000, Math.min(Number(args?.max_chars) || 12000, 40000))
+        const body = assetMainText(v.content) || JSON.stringify(v.content)
+        const note = body.length > limit ? `；正文共 ${body.length} 字符，这里只给前 ${limit} 字符` : ''
+        return [{ type: 'text', text: `${v?.step ?? ''} 产物（${v?.raw_len ?? '?'} 字符${note}）：\n` + body.slice(0, limit) }]
+      },
     },
     async execute(args: { project_id: string; step: string }) {
       return api.get(`/api/v3/director/asset/${encodeURIComponent(args.project_id)}?step=${encodeURIComponent(args.step)}`)
@@ -2101,6 +2349,29 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     },
   }))
 
+
+  /** 资产正文 -> 人能读的文本（与后端 step_result 的取法同序，缺了就回退 JSON）。 */
+  function assetMainText(content: any): string {
+    if (!content || typeof content !== 'object') return ''
+    const keys = ['story_text', 'script_text', 'creative_script_text', 'treatment_text', 'hook', 'logline', 'synopsis', 'summary']
+    for (const key of keys) {
+      const value = content[key]
+      if (typeof value === 'string' && value.trim()) return value.trim()
+    }
+    if (Array.isArray(content.chapters) && content.chapters.length) {
+      return content.chapters.slice(0, 6).map((chapter: any) => {
+        const title = String(chapter?.chapter_title ?? '')
+        const number = chapter?.chapter_number ?? ''
+        const body = String(chapter?.chapter_text ?? '')
+        return ('第' + number + '章 ' + title).trim() + '\n' + body
+      }).filter(Boolean).join('\n\n')
+    }
+    if (Array.isArray(content.scene_scripts) && content.scene_scripts.length) {
+      return content.scene_scripts.slice(0, 6).join('\n\n')
+    }
+    return ''
+  }
+
   /* ── P2：会话绑定 + 契约 v5 新工具（项目库/总览/产物/交付/成本/修复/连接） ───────── */
 
   // 会话-项目绑定：键是 Agent（=DSH 会话）id，进程内有效；同时写 ZipX 的 external_sessions 做持久化。
@@ -2145,7 +2416,7 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
    */
   async function waitStep(projectId: string, step: string, maxSeconds: number, opts: { onProgress?: (p: any) => void; shouldStop?: () => boolean } = {}): Promise<any> {
     const startedAt = Date.now()
-    const deadline = startedAt + Math.max(10, Number(maxSeconds || 300)) * 1000
+    const deadline = startedAt + Math.max(10, Number(maxSeconds || 1800)) * 1000
     let last: any = null
     let baselineFailed = false
     let baselineProduced: number | null = null
@@ -2181,7 +2452,10 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       }
       const moved = last?.project?.current_step !== step
       const done = Boolean(cur?.is_complete)
-      if (moved || done) break
+      // story/script 等步骤的终态是 awaiting_confirm，而 is_complete 仍为 false；
+      // 只认 is_complete 会让 watch 一直等到超时（真机：故事完成后又白等 30 分钟）。
+      const awaiting = ['awaiting_confirm', 'awaiting_confirmation', 'waiting_confirmation'].includes(String(cur?.lifecycle ?? ''))
+      if (moved || done || awaiting) break
       if (isFailed && (failedAfterBaseline || progressed || sawLock)) break
       if (baselineFailed && !sawLock && !progressed && Date.now() - startedAt > 45000) break
       await new Promise(resolve => setTimeout(resolve, 4000))
@@ -2189,6 +2463,36 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     const cur = last?.current ?? {}
     const runDetected = sawLock || progressed || failedAfterBaseline
     const timedOut = Date.now() >= deadline
+    const failedNow = ['failed', 'processing_failed'].includes(String(cur?.lifecycle ?? ''))
+    const awaitingNow = ['awaiting_confirm', 'awaiting_confirmation', 'waiting_confirmation'].includes(String(cur?.lifecycle ?? ''))
+    const finished = !timedOut && (Boolean(cur?.is_complete) || last?.project?.current_step !== step || failedNow || awaitingNow)
+    // 2026-11-17：完成通知只有 WorkState 时，用户看不到"生成了什么"。终态时顺手取一步
+    // 预览（正文节选 + 前 2 个媒体 + 门禁），让回执自己带上结果，而不是只报 1/1。
+    let preview: any = null
+    if (finished) {
+      try {
+        // brief=1：后端同一份预览的紧凑回执（<2KB，整段塞进 DSH 完成通知）。
+        const p: any = await api.get('/api/v3/director/project/' + encodeURIComponent(projectId)
+          + '/result?step=' + encodeURIComponent(step) + '&brief=1&max_chars=360&max_media=2&language=' + encodeURIComponent(language))
+        if (p && (p.summary || p.excerpt || p.media_count)) {
+          const media = Array.isArray(p.media) ? p.media.slice(0, 2) : []
+          preview = {
+            label: p.label || step,
+            summary: p.summary || '',
+            gate: p.gate?.overall || 'unchecked',
+            score: p.gate?.score ?? null,
+            threshold: p.gate?.threshold ?? null,
+            excerpt: String(p.excerpt || '').slice(0, 360),
+            media_count: p.media_count || media.length,
+            media: media.map((m: any) => ({ label: m.label, kind: m.kind, url: m.url })),
+            next_tool: 'zipx_step_result',
+          }
+        }
+      } catch (error) {
+        // 预览读不到不改变"这一步完成没完成"的事实；如实留空。
+        console.warn('[zipx-director] step result preview failed: ' + String((error as any)?.message || error))
+      }
+    }
     return {
       timed_out: timedOut,
       current_step: last?.project?.current_step ?? step,
@@ -2201,7 +2505,8 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       legal_actions: last?.legal_actions_human ?? [],
       failed_before_dispatch: baselineFailed,
       new_run_detected: runDetected,
-      is_done: Boolean(cur?.is_complete) && !timedOut,
+      is_done: (Boolean(cur?.is_complete) || awaitingNow) && !timedOut,
+      preview,
       note: !runDetected && baselineFailed && Boolean(cur?.is_complete) === false
         ? '该步骤在本次派发之前就已经是 failed，等待期间没有观察到新的执行迹象（未加锁、产出数未变）——不能据此断定这次派发失败。'
         : '',
@@ -2223,16 +2528,30 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
           '设备：' + (v.device || '未知'),
           '过期：' + (v.expires_at || '未知'),
           '写模式：' + (v.write_mode || '未知'),
+          '付费确认：' + (v.dsh_paid_confirmation === 'native-approval'
+            ? 'DSH 批准卡'
+            : v.dsh_paid_confirmation === 'one-time-card'
+              ? '一次性确认卡（本会话审批被关闭，仍需要你点允许）'
+              : v.dsh_paid_confirmation === 'unavailable'
+                ? '不可用（付费动作会被拒绝；请切到「询问」）'
+                : '未知'),
           '本次进程注册的工具：' + (v.dsh_tools ?? '未知') + ' 个',
         ]
         if (v.channel_state !== 'enabled' && v.hint) lines.push(v.hint)
         return [{ type: 'text', text: lines.join('\n') }]
       },
     },
-    async execute() {
+    async execute(_args: any, exec: any) {
       const caps: any = await api.get('/api/v3/director/capabilities')
       // 工具面由 Host 侧真实注册表给出：「注册了 N 个」不该靠数提示词。
-      return caps && typeof caps === 'object' ? { ...caps, dsh_tools: registered.length } : caps
+      const mode = paidConfirmationMode(exec)
+      return caps && typeof caps === 'object'
+        ? {
+            ...caps,
+            dsh_tools: registered.length,
+            dsh_paid_confirmation: mode === 'native' ? 'native-approval' : mode === 'question' ? 'one-time-card' : 'unavailable',
+          }
+        : caps
     },
   }))
 
@@ -2242,7 +2561,9 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
     parameters: {
       page: { type: 'number', description: '页码，默认 1' },
       page_size: { type: 'number', description: '每页条数，默认 20，上限 100' },
-      status: { type: 'string', description: '只列某种状态（可选）' },
+      status: { type: 'string', description: '只列某种状态（可选：draft/generating/completed/failed/archived）' },
+      q: { type: 'string', description: '搜索标题与创意母本（可选）' },
+      include_archived: { type: 'boolean', description: '是否把已归档项目也算进来（默认不算）' },
     },
     output: {
       schema: { type: 'json' },
@@ -2264,34 +2585,77 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       q.set('page_size', String(Math.min(Number(args?.page_size) || 20, 100)))
       q.set('gates', '1')
       if (args?.status) q.set('status', String(args.status))
+      if (args?.q) q.set('q', String(args.q))
+      if (args?.include_archived === true) q.set('include_archived', '1')
       return api.get('/api/v3/director/projects?' + q.toString())
     },
   }))
 
   reg(defineTool({
     name: 'zipx_create_project',
-    description: '新建一个 ZipX 项目（只建，不开工、不花钱）。返回 project_id 后建议调用 zipx_bind_project 绑到本会话。genre（题材）必填。',
+    description: '新建一个 ZipX 项目（只建，不开工、不花钱；走 /api/v3/director/setup）。返回 project_id 后建议调用 zipx_bind_project 绑到本会话。**initial_content 必填**：故事步骤只读 project.input_prompt，不读 title/genre/蓝图；不传就会按「请创作一个有趣的故事」的占位提示生成跑题故事（2026-11-17 真机：科幻政治惊悚被写成乡村染坊悬疑）。mode 决定工作流：idea=创意→视频、novel=小说原文→视频、script=剧本→视频（script 不重复生成故事）。',
     parameters: {
       title: { type: 'string', required: true, description: '项目标题' },
       genre: { type: 'string', required: true, description: '题材，如 悬疑/科幻/都市' },
+      mode: { type: 'string', description: '创作模式：idea（默认，创意→视频）/ novel（小说原文→视频）/ script（剧本→视频）', enum: ['idea', 'novel', 'script'] },
+      initial_content: { type: 'string', required: true, description: '创意母本：用户的故事想法/小说原文/剧本全文（逐字传入，不要概括）。会写入 project.input_prompt，故事/剧本步骤直接读它。' },
       form: { type: 'string', description: '形态：film 短片 / series 剧集（可选）' },
-      episodes: { type: 'number', description: '集数（剧集时需要）' },
-      duration_s: { type: 'number', description: '单集/整片时长秒数' },
+      episodes: { type: 'number', description: '集数（剧集时需要；会写入 story_requirements.chapter_count，故事按章生成）' },
+      duration_s: { type: 'number', description: '单集/整片时长秒数（会写入 target_runtime_s，分镜/剪辑/门禁共用这个数）' },
+      words_per_chapter: { type: 'number', description: '每章字数（可选；剧集默认 1200）' },
+      creation_template: { type: 'string', description: '创作模板 id（binge_drama/cinematic_drama/…；不传用后端默认）' },
+      custom_style_notes: { type: 'string', description: '风格补充（可选）' },
+      story_characters: { type: 'string', description: '主要人物（可选，写入 story_requirements.characters）' },
+      story_worldbuilding: { type: 'string', description: '世界观/禁忌（可选，写入 story_requirements.worldbuilding）' },
+      director_archetype: { type: 'string', description: '导演原型 id（zhang_yimou/li_an/hou_xiaoxian/wang_jiawei/spielberg/nolan/fincher/dongman/sweet_romance；不传=后端默认张艺谋）' },
+      visual_style: { type: 'string', description: '视觉风格 id（cinematic/noir/…；不传=原型默认）' },
+      aspect_ratio: { type: 'string', description: '画幅 9:16 / 16:9 / 1:1（不传=9:16）' },
+      platform: { type: 'string', description: '目标平台 honguo/tiktok/bilibili/…（不传=后端默认）' },
+      content_language: { type: 'string', description: '内容语言 zh / en（不传=zh）' },
+      creator_mode: { type: 'string', description: '创作模式档位 easy（自动巡航）/ director（逐步精制）；不传=账号默认', enum: ['easy', 'director'] },
     },
     output: {
       schema: { type: 'json' },
       render: (_a: unknown, v: any) => [{ type: 'text', text: v && v.project_id ? ('已创建：' + v.project_id + '（还没有开工，要开始创作请说「开始做第一步」）') : ('建项目失败：' + JSON.stringify(v).slice(0, 200)) }],
     },
     async execute(args: any, exec: any) {
+      const initialContent = String(args.initial_content || '').trim()
+      if (!initialContent) {
+        throw new Error('zipx_create_project 需要 initial_content（创意母本）。故事步骤只读 project.input_prompt；只给 title/genre 会让作家按占位提示写一个跑题故事。先让用户给出故事想法/原文，再建项目。')
+      }
+      // 三模式 → workflow_type（唯一映射表；/setup 是唯一读它的创建入口）。
+      const MODES: any = { idea: 'idea2video', novel: 'novel2video', script: 'script2video' }
+      const mode = String(args.mode || 'idea')
+      const workflowType = MODES[mode] || 'idea2video'
+      const storyRequirements: any = {}
+      // 剧本模式不按章生成（script2video 直接解析场次），只有创意/小说模式吃章节规格。
+      if (args.episodes && args.form !== 'film' && workflowType !== 'script2video') {
+        storyRequirements.chapter_count = Number(args.episodes)
+      }
+      const wordsPerChapter = args.words_per_chapter ? Number(args.words_per_chapter) : (storyRequirements.chapter_count ? 1200 : 0)
+      if (wordsPerChapter > 0) storyRequirements.words_per_chapter = wordsPerChapter
+      if (args.story_characters) storyRequirements.characters = String(args.story_characters)
+      if (args.story_worldbuilding) storyRequirements.worldbuilding = String(args.story_worldbuilding)
       const body = {
         title: String(args.title || '').trim(),
         genre: String(args.genre || '').trim(),
-        form: args.form ? String(args.form) : undefined,
-        episodes: args.episodes ? Number(args.episodes) : undefined,
-        duration_s: args.duration_s ? Number(args.duration_s) : undefined,
+        initial_content: initialContent,
+        workflow_type: workflowType,
+        // 后端 DirectorSetupRequest 没有 form/episodes/duration_s 字段；直接发会被 Pydantic 静默丢弃。
+        // 唯一正确映射：episodes → story_requirements.chapter_count，duration_s → target_runtime_s。
+        story_requirements: Object.keys(storyRequirements).length ? storyRequirements : undefined,
+        target_runtime_s: args.duration_s ? Number(args.duration_s) : undefined,
+        creation_template: args.creation_template ? String(args.creation_template) : undefined,
+        custom_style_notes: args.custom_style_notes ? String(args.custom_style_notes) : undefined,
+        director_archetype: args.director_archetype ? String(args.director_archetype) : undefined,
+        visual_style: args.visual_style ? String(args.visual_style) : undefined,
+        aspect_ratio: args.aspect_ratio ? String(args.aspect_ratio) : undefined,
+        platform: args.platform ? String(args.platform) : undefined,
+        content_language: args.content_language ? String(args.content_language) : undefined,
+        creator_mode: args.creator_mode ? String(args.creator_mode) : undefined,
         auto_start: false,
       }
-      const created: any = await api.post('/api/v3/director/projects', body)
+      const created: any = await api.post('/api/v3/director/setup', body)
       const id = String(created?.project_id || created?.project?.id || '')
       const key = keyOf(exec)
       if (id && key) {
@@ -2304,6 +2668,31 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
         }
       }
       return { ...(created as any), session_id: key, bound: Boolean(id && key) }
+    },
+  }))
+
+  reg(defineTool({
+    name: 'zipx_update_project_input',
+    description: '改正一个**尚未开工**项目的创意母本（写入 project.input_prompt）。只在项目没有产物、current_step=init 时可用；已开工请用 modify/regenerate，不要新建重复项目。故事步骤只读 project.input_prompt。',
+    parameters: {
+      project_id: { type: 'string', required: true },
+      initial_content: { type: 'string', required: true, description: '新的创意母本（逐字传入）' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => [{
+        type: 'text',
+        text: v && v.ok
+          ? ('已更新母本（' + (v.input_prompt_len ?? '?') + ' 字）；当前步骤 ' + (v.current_step ?? 'init') + '。')
+          : ('更新失败：' + JSON.stringify(v).slice(0, 200)),
+      }],
+    },
+    async execute(args: any) {
+      const pid = String(args.project_id || '')
+      if (!pid) throw new Error('需要 project_id')
+      const content = String(args.initial_content || '').trim()
+      if (!content) throw new Error('initial_content 不能为空')
+      return api.post('/api/v3/director/project/' + encodeURIComponent(pid) + '/input', { initial_content: content })
     },
   }))
 
@@ -2358,6 +2747,134 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
         // 服务端绑定失败不撤销本地绑定：本会话仍可用，只是换设备/重启会丢。
         return { project_id: projectId, session_id: key, rebound: Boolean(previous && previous !== projectId), note: '本地已绑定，服务端没记住：' + String((error as any)?.message || error).slice(0, 160) }
       }
+    },
+  }))
+
+  // 2026-11-17：绑定一直是单向的（能 bind 不能 unbind），会话被历史项目占住后只能改绑。
+  // 解绑只清 external_sessions.project_id 与进程内缓存，不动项目、不动设备、不撤销会话。
+  reg(defineTool({
+    name: 'zipx_unbind_project',
+    description: '解除本会话与 ZipX 项目的绑定（只清会话绑定，不动项目、不撤销设备）。解绑后 zipx_* 工具不再默认指向任何项目；需要时再 zipx_bind_project。',
+    parameters: {},
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => [{ type: 'text', text: v && v.unbound ? '已解绑本会话的 ZipX 项目绑定。' : ('解绑失败：' + JSON.stringify(v).slice(0, 200)) }],
+    },
+    async execute(_args: any, exec: any) {
+      const key = keyOf(exec)
+      if (!key) return { unbound: false, session_id: '', note: '没有会话 id，未做任何修改。' }
+      sessionBindings.delete(key)
+      try {
+        const res: any = await api.post('/api/v3/director/session/unbind', { dsh_session_id: key })
+        return { ...(res as any), session_id: key, unbound: true }
+      } catch (error) {
+        return { unbound: false, session_id: key, note: '服务端解绑失败：' + String((error as any)?.message || error).slice(0, 160) }
+      }
+    },
+  }))
+
+  // 改名 / 归档 / 恢复：DSH 面板的「整理项目库」唯一写入口（PATCH 一条端点）。
+  reg(defineTool({
+    name: 'zipx_update_project',
+    description: '改名或归档/恢复一个 ZipX 项目。归档 = status 置 archived（不删除任何东西、不占免费版项目配额，项目库默认不再列出）；恢复 = 写回归档前的状态。',
+    parameters: {
+      project_id: { type: 'string', required: true, description: 'ZipX 项目 id' },
+      title: { type: 'string', description: '新标题（不想改名就不传）' },
+      archived: { type: 'boolean', description: 'true=归档；false=恢复（不传=不动归档状态）' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => [{
+        type: 'text',
+        text: v && v.ok
+          ? ('已更新：' + (Array.isArray(v.changed) ? v.changed.join('、') : String(v.changed || '')) + '；标题「' + (v.title || '') + '」，状态 ' + (v.status || '') + (v.archived ? '（已归档，项目库默认不显示）' : '') + '。')
+          : ('更新失败：' + JSON.stringify(v).slice(0, 200)),
+      }],
+    },
+    async execute(args: any) {
+      const pid = String(args.project_id || '')
+      if (!pid) throw new Error('需要 project_id')
+      const body: any = {}
+      if (args.title !== undefined && args.title !== null) body.title = String(args.title)
+      if (args.archived === true || args.archived === false) body.archived = args.archived
+      if (!Object.keys(body).length) throw new Error('至少给 title 或 archived 之一')
+      return api.patch('/api/v3/director/project/' + encodeURIComponent(pid), body)
+    },
+  }))
+
+  // 创作者个人知识库（账号级）：面板「知识」tab 与对话共用这一条工具，不复制规则。
+  reg(defineTool({
+    name: 'zipx_creator_kb',
+    description: '读/写 ZipX 创作者个人知识库（账号级，跨项目）。action：overview（风格画像+文档统计）、documents（文档列表）、style_profile、add_link（提交 http 链接，视频链接会走创意分析）、add_text（提交一段创意文本）、set_enabled（启用/停用某篇）。上传 PDF/Word/图片请到 Studio（DSH 代理不收 multipart）。',
+    parameters: {
+      action: { type: 'string', required: true, enum: ['overview', 'documents', 'style_profile', 'add_link', 'add_text', 'set_enabled'] },
+      doc_id: { type: 'string', description: 'set_enabled 需要：文档 id' },
+      enabled: { type: 'boolean', description: 'set_enabled 需要：true=启用 / false=停用' },
+      url: { type: 'string', description: 'add_link 需要：http(s) 链接' },
+      text: { type: 'string', description: 'add_text 需要：创意文本（至少 20 字）' },
+      title: { type: 'string', description: 'add_text 可选标题' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => {
+        if (!v || typeof v !== 'object') return [{ type: 'text', text: '读不到知识库：' + JSON.stringify(v).slice(0, 200) }]
+        if (Array.isArray(v.documents)) {
+          if (!v.documents.length) return [{ type: 'text', text: '知识库还是空的：可以 add_link / add_text，或到 Studio 上传 PDF/Word。' }]
+          const lines = ['知识文档 ' + v.documents.length + ' 篇：']
+          for (const d of v.documents.slice(0, 20)) {
+            lines.push('- ' + (d.analysis_title || d.source_name || d.id) + '｜' + (d.parsed_status || '?') + '｜' + (d.enabled ? '启用' : '停用') + '｜引用 ' + (d.recall_hits || 0) + ' 次')
+          }
+          return [{ type: 'text', text: lines.join('\n') }]
+        }
+        if (v.ok === false) return [{ type: 'text', text: '知识库接口说不行：' + (v.message || v.code || '') }]
+        return [{ type: 'text', text: '知识库：' + JSON.stringify(v).slice(0, 400) }]
+      },
+    },
+    async execute(args: any) {
+      const action = String(args.action || 'overview')
+      if (action === 'overview') return api.get('/api/v3/creator/overview')
+      if (action === 'documents') return api.get('/api/v3/creator/knowledge/documents')
+      if (action === 'style_profile') return api.get('/api/v3/creator/style-profile')
+      if (action === 'add_link') {
+        const url = String(args.url || '').trim()
+        if (!/^https?:\/\//i.test(url)) throw new Error('add_link 需要 http(s) 链接')
+        return api.post('/api/v3/creator/knowledge/links', { url, note: args.title ? String(args.title) : undefined })
+      }
+      if (action === 'add_text') {
+        const text = String(args.text || '').trim()
+        if (text.length < 20) throw new Error('add_text 至少 20 字（后端硬校验）')
+        return api.post('/api/v3/creator/knowledge/creative-text', { text, title: args.title ? String(args.title) : undefined })
+      }
+      if (action === 'set_enabled') {
+        const docId = String(args.doc_id || '')
+        if (!docId) throw new Error('set_enabled 需要 doc_id')
+        if (args.enabled !== true && args.enabled !== false) throw new Error('set_enabled 需要 enabled=true/false')
+        return api.patch('/api/v3/creator/knowledge/documents/' + encodeURIComponent(docId), { enabled: args.enabled })
+      }
+      throw new Error('未知的 action：' + action)
+    },
+  }))
+
+  // 协作（剧组）只读：成员 / 锚点 / 交付 / 审计 / 快照。写操作留在 Studio。
+  reg(defineTool({
+    name: 'zipx_collab',
+    description: '只读查看项目的剧组成员与协作记录（members 成员 / anchors 锚点 / deliveries 交付 / audit 审计 / snapshots 快照）。成员可读这件事本身就是权限：能看到说明你在这部戏里。',
+    parameters: {
+      project_id: { type: 'string', description: 'ZipX 项目 id（省略=本会话绑定的项目）' },
+      view: { type: 'string', required: true, enum: ['members', 'anchors', 'deliveries', 'audit', 'snapshots'] },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => {
+        const items = (v && (v.items || v.members || v.anchors || v.deliveries || v.audit || v.snapshots)) || []
+        if (!Array.isArray(items) || !items.length) return [{ type: 'text', text: '这一项是空的（或读不到）：' + JSON.stringify(v).slice(0, 160) }]
+        return [{ type: 'text', text: '共 ' + items.length + ' 条：' + items.slice(0, 10).map((x: any) => String(x.name || x.title || x.action || x.id || '')).join('、') }]
+      },
+    },
+    async execute(args: any, exec: any) {
+      const id = await resolveProject(args, exec)
+      if (!id) throw new Error(noProjectHint())
+      return api.get('/api/v4/collab/projects/' + encodeURIComponent(id) + '/' + encodeURIComponent(String(args.view)))
     },
   }))
 
@@ -2418,6 +2935,137 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
       if (args?.steps) q.set('steps', String(args.steps))
       q.set('media', args?.media === false ? '0' : '1')
       return api.get('/api/v3/director/project/' + encodeURIComponent(id) + '/artifacts?' + q.toString())
+    },
+  }))
+
+
+  reg(defineTool({
+    // 2026-11-17（session-0f608876）：生成完了但结果没回到 DSH 对话 —— 后台任务完成通知
+    // 只有 WorkState（"story · running · 1/1"），没有正文/产物指针/媒体 URL。这个工具是
+    // 「一步的产物长什么样」的唯一读入口：正文节选 + 计数 + 可播媒体 + 门禁，一张卡渲染。
+    name: 'zipx_step_result',
+    description: [
+      '读某一步的**产物预览**：正文节选（故事/剧本/钩子）、计数（章/场/镜/条）、可播媒体（关键帧/视频）、这一步的门禁。',
+      '任何一次生成结束（zipx_watch_step 到终态，或 state 显示 is_complete）都要调用它，把摘要和正文节选贴给用户；只说「已完成」不算交付。',
+      '卡片会渲染正文节选与图片/视频；要完整正文用 zipx_read_asset，要全部媒体清单用 zipx_artifacts。',
+    ].join(''),
+    parameters: {
+      project_id: { type: 'string', description: 'ZipX 项目 id（省略=本会话绑定的项目）' },
+      step: { type: 'string', required: true, description: '步骤 id，如 story/script/keyframes/shots_hitl/compose' },
+      max_chars: { type: 'integer', description: '正文节选上限（默认 900，最大 8000）' },
+      max_media: { type: 'integer', description: '媒体数量上限（默认 6，最大 12）' },
+    },
+    output: {
+      schema: { type: 'json' },
+      presentationMeta: metaResult,
+      render: (_a: unknown, v: any) => {
+        if (!v || v.has_content !== true) {
+          return [{ type: 'text', text: String(v?.empty_reason || '这一步还没有产物。') }]
+        }
+        const gate = v.gate || {}
+        const gateText = gate.overall && gate.overall !== 'unchecked'
+          ? '门禁 ' + gate.overall + (gate.score == null ? '' : '（' + Number(gate.score).toFixed(2) + '/' + (gate.threshold ?? '?') + '）')
+          : '门禁未检查'
+        const lines = [
+          (v.label || v.step) + '（' + v.step + '）· ' + (v.summary || '已生成') + ' · ' + gateText,
+        ]
+        if (gate.summary) lines.push('门禁说明：' + String(gate.summary).slice(0, 300))
+        if (Array.isArray(gate.reasons) && gate.reasons.length) lines.push('主要问题：' + gate.reasons.slice(0, 3).join('；'))
+        if (v.text) {
+          lines.push('正文（' + (v.text_source || 'content') + '，共 ' + (v.text_chars ?? '?') + ' 字符' + (v.truncated ? '，这里是节选' : '') + '）：')
+          lines.push(v.text)
+        }
+        const media = Array.isArray(v.media) ? v.media : []
+        if (media.length) {
+          lines.push('可播媒体 ' + media.length + (v.media_total > media.length ? ' / 共 ' + v.media_total : '') + ' 个（卡片里可看/播放）：')
+          for (const item of media.slice(0, 6)) lines.push('- ' + (item.label || item.path))
+        }
+        if (!v.text && !media.length) lines.push('（这一步没有正文或媒体，只有结构化产物；用 zipx_artifacts 看字段。）')
+        return [{ type: 'text', text: lines.join('\n') }]
+      },
+    },
+    async execute(args: any, exec: any) {
+      const id = await resolveProject(args, exec)
+      if (!id) throw new Error(noProjectHint())
+      const q = new URLSearchParams()
+      q.set('step', String(args.step))
+      q.set('max_chars', String(Math.max(200, Math.min(Number(args.max_chars) || 900, 8000))))
+      q.set('max_media', String(Math.max(0, Math.min(Number(args.max_media) || 6, 12))))
+      q.set('language', language)
+      return api.get('/api/v3/director/project/' + encodeURIComponent(id) + '/result?' + q.toString())
+    },
+  }))
+
+
+  reg(defineTool({
+    // 2026-11-17（session-0f608876）：用户说「给全剧起名、补人物表」，
+    // chapter_scope_dispatch 把整句收窄成「只重做 6 章」，全局要求被静默丢掉。
+    // 这不是生成动作，只改 outline 字段 + 重算 outline_quality + 把门禁标旧。
+    name: 'zipx_update_story_outline',
+    description: [
+      '只改故事大纲的全局字段：剧名 title、一句话简介 logline、人物表 characters（不重写正文）。',
+      '用户要求「给全剧起名 / 补人物表 / 改简介」而正文不需要重做时用它；不要为此整步重做故事。',
+      '改完门禁会标成旧判决（gate_stale），需要时用 zipx_run_gate 重判。',
+    ].join(''),
+    parameters: {
+      project_id: { type: 'string', description: 'ZipX 项目 id（省略=本会话绑定的项目）' },
+      title: { type: 'string', description: '剧名（最多 120 字）' },
+      logline: { type: 'string', description: '一句话简介（最多 800 字）' },
+      characters: {
+        type: 'array',
+        description: '人物表：[{name, description?, initial_state?}] 或 ["姓名", ...]（最多 40 人）',
+        items: { type: 'object', additionalProperties: true },
+      },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_a: unknown, v: any) => {
+        if (!v || v.ok !== true) return [{ type: 'text', text: '大纲修改失败：' + JSON.stringify(v).slice(0, 240) }]
+        const bits = Array.isArray(v.changed) ? v.changed.join('、') : ''
+        return [{ type: 'text', text: `已更新故事大纲（${bits}）：剧名「${v.title || '（空）'}」，人物 ${v.characters ?? 0} 人。正文没有重写；旧门禁已标为过期。` }]
+      },
+    },
+    async execute(args: any, exec: any) {
+      const id = await resolveProject(args, exec)
+      if (!id) throw new Error(noProjectHint())
+      const body: any = {}
+      if (args.title !== undefined) body.title = String(args.title)
+      if (args.logline !== undefined) body.logline = String(args.logline)
+      if (args.characters !== undefined) body.characters = args.characters
+      if (!Object.keys(body).length) throw new Error('至少要给 title / logline / characters 之一')
+      return api.post('/api/v3/director/project/' + encodeURIComponent(id) + '/story/outline', body)
+    },
+  }))
+
+  reg(defineTool({
+    // 2026-11-17：章节/大纲在门禁判决之后被改过时，必须能显式重判一次。
+    // 走与 execute_step 同一条后处理链；判官有 provider 成本，但不扣用户积分。
+    name: 'zipx_run_gate',
+    description: [
+      '重跑某一步的门禁（story/script/plot_analysis 等）：走与整步生成同一套 story_quality + 判官链。',
+      '改了章节或大纲后 state 说 gate_stale、或用户问「这版过没过」时用它；只判不生成正文。',
+      '可能跑几分钟（多位判官）；返回 pass/fail/score 与原因。',
+    ].join(''),
+    parameters: {
+      project_id: { type: 'string', description: 'ZipX 项目 id（省略=本会话绑定的项目）' },
+      step: { type: 'string', required: true, description: '步骤 id，如 story/script' },
+    },
+    output: {
+      schema: { type: 'json' },
+      presentationMeta: metaGeneric('zipx_run_gate'),
+      render: (_a: unknown, v: any) => {
+        if (!v || v.finalized !== true) {
+          return [{ type: 'text', text: '门禁没有产出结论：' + String(v?.reason || '未真正质检') }]
+        }
+        const passed = v.gate_passed === true ? '通过' : v.gate_passed === false ? '未通过' : '未判'
+        const score = typeof v.gate_score === 'number' ? `（${v.gate_score.toFixed(2)}/${v.gate_threshold ?? '?'}）` : ''
+        return [{ type: 'text', text: `门禁已重判：${passed}${score}${v.gate_unscored ? '（判官未真正计分）' : ''}\n${String(v.gate_summary || '').slice(0, 600)}` }]
+      },
+    },
+    async execute(args: any, exec: any) {
+      const id = await resolveProject(args, exec)
+      if (!id) throw new Error(noProjectHint())
+      return api.post('/api/v3/director/project/' + encodeURIComponent(id) + '/steps/' + encodeURIComponent(String(args.step)) + '/regate', {})
     },
   }))
 
@@ -2577,12 +3225,19 @@ export function apply(ctx: Context, config: ZipxConfig = {}) {
         '用户的影视创作在 ZipX 里（工具前缀 zipx_，共 ' + registered.length + ' 个）。',
         '1) 任何「项目到哪一步/能不能做」先 zipx_project_state，不要猜。',
         '2) 任何创作动作先 zipx_preview_action：allowed=false 按 reason_human 解释，allowed=null 是「判不了」。',
-        '3) 付费动作（confirm / regenerate / regenerate_item / resume / start / start_episode）必须先让用户确认。',
-        '4) 派发后只说「已派发」；完成与否用 zipx_watch_step 确认，读不到就说读不到。用户要停就 zipx_abort（已发出的付费调用可能仍完成，后续步骤不再继续）。',
+        '3) 付费动作（confirm / regenerate / regenerate_item / resume / start / start_episode）必须先让用户确认；DSH 批准卡和一次性确认卡都算用户确认，模型的 confirm=true 不算。',
+        '3b) 审批被关闭的会话（full access / approval policy never）会用一次性确认卡；被拒绝或超时就如实说「未执行、没有扣费」，不要连着重试同一动作。',
+        '3c) 含付费动作的 run_code 要单独一次，并传 timeoutMs: 600000；默认 120 秒包含等待批准/确认的时间，用户多看几秒就会把整个程序判超时。',
+        '4) 派发后只说「已派发」；完成与否用 zipx_watch_step 确认，读不到就说读不到。用户要停就 zipx_abort（已发出的付费调用仍可能完成，后续步骤不再继续）。',
+        '4b) 生成一结束（watch_step 到终态，或 state 显示 is_complete），必须调 zipx_step_result：把摘要、正文节选、媒体数量贴给用户，让卡片在会话里显示产物。只说「已完成」不算交付；没有产物/读不到就如实说。',
         '5) 一次只做一个写动作；多镜修改拆成多轮。',
         '6) 只有结构化工具覆盖不到时，才用 zipx_chat（旧对话通道）。',
-        '7) 不熟悉的项目先 zipx_project_overview（一次拿齐状态/门禁/剧集/交付）；要正文用 zipx_read_asset，要图为 zipx_artifacts（只给签名 URL，不搬字节），要「刚才发生了什么」用 zipx_events，要「现在在做什么」用 zipx_progress。',
+        '7) 不熟悉的项目先 zipx_project_overview（一次拿齐状态/门禁/剧集/交付）；要某一步的预览（正文节选+媒体卡片）用 zipx_step_result，要完整正文用 zipx_read_asset，要全部媒体清单用 zipx_artifacts（只给签名 URL，不搬字节），要「刚才发生了什么」用 zipx_events，要「现在在做什么」用 zipx_progress。',
         '8) 没绑定项目时先 zipx_list_projects 让用户挑，再用 zipx_bind_project 绑定；之后可省略 project_id。',
+        '9) 建项目：zipx_create_project 必须带 initial_content（故事步骤只读 project.input_prompt，不读 title/genre/蓝图）；episodes/duration_s 必须传（映射 story_requirements.chapter_count / target_runtime_s）。只把创意写进蓝图不会进入故事。',
+        '10) 未开工（init、无产物）的项目母本写错，用 zipx_update_project_input 改正，不要新建同名项目；已开工才用 modify/regenerate。',
+        '10b) 只改剧名/一句话简介/人物表：用 zipx_update_story_outline（不重写正文，门禁会标旧）；改完需要刷新判决时用 zipx_run_gate。不要为了补剧名整步重写故事。',
+        '11) 导演原型不要一律用默认张艺谋：科幻/惊悚/冷峻写实优先 nolan / fincher，家庭情感优先 li_an，民俗色彩优先 zhang_yimou。',
       ].join('\n'),
     })
   })

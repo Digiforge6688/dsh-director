@@ -38,7 +38,7 @@ await page.waitForTimeout(6000)
 const notice = page.locator('button:has-text("继续"), button:has-text("Continue")').first()
 if (await notice.count() > 0) { await notice.click().catch(() => {}); await page.waitForTimeout(800) }
 
-const entry = page.locator('button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
+const entry = page.locator('button[aria-label="DSH导演"], button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
 for (let i = 0; i < 8; i++) {
   if ((await page.getByText('+ 新建项目').count()) > 0) break
   await entry.click().catch(() => {})

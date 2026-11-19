@@ -49,7 +49,7 @@ try {
   const notice = page.locator('button:has-text("继续"), button:has-text("Continue")').first()
   if (await notice.count() > 0) { await notice.click({ timeout: 5000 }).catch(() => {}); await page.waitForTimeout(1200) }
 
-  const entry = page.locator('button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
+  const entry = page.locator('button[aria-label="DSH导演"], button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
   await entry.waitFor({ state: 'visible', timeout: 60000 }).catch(() => {})
   check('侧栏有 ZipX 入口', (await entry.count()) > 0)
 

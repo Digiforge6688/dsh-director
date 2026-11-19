@@ -41,7 +41,7 @@ const ctx = {
 
 await lib.apply(ctx, { baseUrl: 'http://127.0.0.1:8000', token: 'test-token', language: 'zh' })
 
-check(tools.length === 35, '工具数应为 35，实际 ' + tools.length)
+check(tools.length === 43, '工具数应为 43，实际 ' + tools.length)
 check(provider !== null, 'apply() 没有注册技能 provider（SKILL.md 仍只是随包躺着）')
 
 if (provider) {
@@ -69,4 +69,4 @@ if (failures.length > 0) {
   for (const message of failures) console.log('FAIL  ' + message)
   process.exit(1)
 }
-console.log('[zipx] skill surface ok: zipx-creator registered (35 tools alongside)')
+console.log('[zipx] skill surface ok: zipx-creator registered (43 tools alongside)')

@@ -2,8 +2,10 @@
     var STORE = {
       sessionId: '', loadedFor: '', projectId: '', project: null,
       state: null, cost: null, loading: false, error: '', bound: null,
+      // 面板按钮投递失败时的可见提示（静默失败 = 用户以为点坏了）
+      notice: '',
     };
-    var PROJECTS = { items: [], total: 0, loading: false, error: '' };
+    var PROJECTS = { items: [], total: 0, loading: false, error: '', q: '', archived: false };
     var STORE_LISTENERS = [];
     var LOAD_SEQ = 0;
 
@@ -35,6 +37,15 @@
         return subscribeStore(function () { bump(function (n) { return n + 1; }); });
       }, []);
       return PROJECTS;
+    }
+
+    function pushNotice(text) {
+      STORE.notice = String(text || '');
+      notifyStore();
+      if (typeof setTimeout !== 'function') return;
+      setTimeout(function () {
+        if (STORE.notice === String(text || '')) { STORE.notice = ''; notifyStore(); }
+      }, 8000);
     }
 
     function applyState(state) {
@@ -128,11 +139,17 @@
       });
     }
 
-    function refreshProjects() {
+    function refreshProjects(q, archived) {
+      if (q !== undefined) PROJECTS.q = String(q || '');
+      if (archived !== undefined) PROJECTS.archived = archived === true;
       PROJECTS.loading = true;
       PROJECTS.error = '';
       notifyStore();
-      return call('/projects?page=1&page_size=50&gates=1').then(function (res) {
+      var query = '/projects?page=1&page_size=50&gates=1';
+      if (PROJECTS.q) query += '&q=' + encodeURIComponent(PROJECTS.q);
+      // 归档项目默认不列（后端默认同样排除）；打开「归档」时只看归档。
+      if (PROJECTS.archived) query += '&status=archived';
+      return call(query).then(function (res) {
         PROJECTS.loading = false;
         if (res.ok && res.json) {
           PROJECTS.items = asArray(res.json.items);
@@ -142,6 +159,15 @@
         }
         notifyStore();
         return PROJECTS;
+      });
+    }
+
+    /** 改名/归档/恢复的唯一写入口（PATCH /project/{id}）。 */
+    function patchProject(projectId, body) {
+      return call('/project/' + encodeURIComponent(projectId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}),
       });
     }
 

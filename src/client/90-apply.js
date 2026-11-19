@@ -4,9 +4,11 @@
       'zipx_connect', 'zipx_cost', 'zipx_create_project', 'zipx_delivery', 'zipx_dispatch', 'zipx_events',
       'zipx_get_blueprint', 'zipx_get_locks', 'zipx_list_episodes', 'zipx_list_projects', 'zipx_preview_action',
       'zipx_progress', 'zipx_project_overview', 'zipx_project_state', 'zipx_read_asset', 'zipx_regenerate_item',
+      'zipx_step_result', 'zipx_run_gate', 'zipx_update_project_input', 'zipx_update_story_outline',
       'zipx_regenerate_step', 'zipx_repair_action', 'zipx_resume_step', 'zipx_review_project', 'zipx_rollback_step',
       'zipx_sign_lock', 'zipx_start', 'zipx_start_episode', 'zipx_timeline', 'zipx_turn_receipt',
-      'zipx_update_blueprint', 'zipx_watch_step', 'zipx_watch_turn',
+      'zipx_unbind_project', 'zipx_update_blueprint', 'zipx_watch_step', 'zipx_watch_turn',
+      'zipx_update_project', 'zipx_creator_kb', 'zipx_collab',
     ];
 
     function slot(ctx, name, options, component) {
@@ -27,6 +29,13 @@
         RUNTIME.studioUrl = (here.searchParams.get('zipx_studio') || (here.protocol + '//' + here.hostname + ':3000')).replace(/\/+$/, '');
         RUNTIME.shell = here.searchParams.get('zipx_shell') || (window.__ZIPX_DSH_SHELL__ || 'conversation');
         RUNTIME.lastSessionId = '';
+        // Studio → DSH 反向进入（DshProjectHandoff 生成的链接带 zipx_project）：
+        // 打开页面即绑定到该会话，用户不必再选一次。绑定仍是 ProjectChip 的职责。
+        var handoff = here.searchParams.get('zipx_project') || '';
+        if (/^[0-9a-fA-F-]{8,40}$/.test(handoff)) RUNTIME.pendingProject = handoff;
+        // 深链：?zipx_new=idea|novel|script 直接打开对应模式的创建向导（hero 三入口同一条路径）。
+        var newMode = here.searchParams.get('zipx_new') || '';
+        if (newMode === 'idea' || newMode === 'novel' || newMode === 'script') RUNTIME.pendingCreate = { mode: newMode };
       } catch (e) {
         RUNTIME.studioUrl = 'http://localhost:3000';
         RUNTIME.shell = 'conversation';
@@ -75,6 +84,9 @@
       slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/artifact', locale: NS }, ArtifactTab);
       slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/delivery', locale: NS }, DeliveryTab);
       slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/studio', locale: NS }, LegacyStudioTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/assets', locale: NS }, AssetsTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/knowledge', locale: NS }, KnowledgeTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/review', locale: NS }, ReviewTab);
       if (typeof ctx.inject === 'function') ctx.inject(['sidebarRightTabs'], function (scope) {
         var tabs = scope.sidebarRightTabs;
         var defs = [
@@ -82,6 +94,9 @@
           { id: '@zipx/dsh-plugin/artifact', kind: 'zipx-artifact', title: 'artifact.title' },
           { id: '@zipx/dsh-plugin/delivery', kind: 'zipx-delivery', title: 'deliveryTab.title' },
           { id: '@zipx/dsh-plugin/studio', kind: 'zipx-studio', title: 'legacy.title' },
+          { id: '@zipx/dsh-plugin/assets', kind: 'zipx-assets', title: 'assets.title' },
+          { id: '@zipx/dsh-plugin/knowledge', kind: 'zipx-knowledge', title: 'kb.title' },
+          { id: '@zipx/dsh-plugin/review', kind: 'zipx-review', title: 'review.title' },
         ];
         for (var d = 0; d < defs.length; d += 1) {
           (function (def) {

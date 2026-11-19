@@ -1,13 +1,21 @@
 {
   "name": "dsh-zipx",
-  "version": "0.3.0",
-  "description": "Discovery alias for ZipX Director: installs @zipx/dsh-plugin and applies its DSH bundle layer.",
+  "version": "0.6.0",
+  "description": "Discovery alias for DSH Director / DSH导演: installs @zipx/dsh-plugin and applies its DSH bundle layer.",
   "keywords": [
+    "dsh导演",
+    "dsh-director",
     "dsh",
     "dsh-plugin",
     "dsh-zipx",
     "zipx",
+    "导演",
+    "精品影视",
+    "多集短剧",
+    "创意视频",
+    "带货视频",
     "film",
+    "short-drama",
     "storyboard",
     "ai-film",
     "director"
@@ -34,7 +42,7 @@
     }
   },
   "dependencies": {
-    "@zipx/dsh-plugin": "0.3.0"
+    "@zipx/dsh-plugin": "0.6.0"
   },
   "engines": {
     "node": ">=22.19.0",

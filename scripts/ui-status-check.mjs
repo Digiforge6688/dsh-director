@@ -30,7 +30,7 @@ async function scene(name, status, body) {
   // 重新加载页面，让面板以全新状态读取被 mock 的响应
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(4500)
-  const entry = page.locator('button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
+  const entry = page.locator('button[aria-label="DSH导演"], button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
   await entry.click().catch(() => {})
   await page.waitForTimeout(3500)
   await page.screenshot({ path: join(OUT, name) })

@@ -1,5 +1,223 @@
 # CHANGELOG
 
+## 0.6.0（2026-11-19，统一命名 DSH导演 / DSH Director，发布 DSH 插件市场索引）
+
+* 显示名统一为 **DSH导演**（zh）/ **DSH Director**（en）：插件管理器、Discover 卡片、
+  侧栏入口、README、详情页、别名包全部读同一份 `locale/*.json` 的 `meta.title`。
+* 介绍改为**交付结果导向**：精品影视、多集短剧、创意视频、带货商品视频；关键词加入
+  `dsh导演`、`dsh-director`、`精品影视`、`多集短剧`、`创意视频`、`带货视频`、
+  `短剧`、`小说转视频`、`剧本转视频`、`分镜`、`成片` 等，DSH 市场搜索按
+  name/title/keywords/description 打分，四类交付词都能命中。
+* `market/index.json` 改为由 package.json + locale meta 生成；新增四个筛选项
+  （精品影视 / 多集短剧 / 创意视频 / 带货视频），安装源固定到精确 commit。
+* 新增 `docs/DETAIL.en.md`；`meta.detail` 让插件详情页直接展示交付类型，而不是只靠 README。
+* 工具数不变（43）；locale 408 键 zh=en；`npm run check` 与 `npm run market:check` 全绿。
+
+## 0.5.4（2026-11-17，旧门禁未确认可见 + P1 故事账本）
+
+* DSH 状态卡新增 `gate_unverified`：旧资产的门禁没有 `content_fingerprint` 时显示
+  「旧门禁没有内容指纹（未确认）」，不再让用户把历史判决当成这一版的结论；仍可用
+  `zipx_run_gate` 重判。不是 fail，也不冒充 current。
+* 对应后端 P1：场景账本（`agentic/story_ledger.py`）注入整步/单章写作提示词；
+  plot_analysis / script 单章覆盖前落文件快照；`STORY_REPETITION_REVIEW` 可关语义判官。
+* 工具数不变（43）；locale 408 键 zh=en；check-host / check-panel 全绿。
+
+## 0.5.3（2026-11-17，商业面板对商业模板项目始终可见）
+
+* 0.5.1 的商业/植入面板只在简报或产品图非空时出现：用 Studio 建的 brand_film
+  项目如果没填品牌，DSH 里就没有入口补。现在详情读
+  `/zipx-meta/project/{id}/resolved`，模板带 `commercial` 时面板始终显示（空简报也能填）。
+
+## 0.5.2（2026-11-17，安全收口：DELETE 只对团队代理放行）
+
+* 0.5.1 给代理加了 DELETE，但方法白名单是全局的：`/zipx-api` 也会跟着放行 DELETE。
+  现在新增 `allowDelete` 选项（默认 false），只有 `/zipx-team` 打开；其余代理仍保持
+  GET/POST/PUT/PATCH。check-host 钉住：`/zipx-api` 的 DELETE 返回 405，`/zipx-team` 的
+  DELETE 透传。
+
+## 0.5.1（2026-11-17，收口四条边界：产品图 / 团队 / 知识媒体 / 流式上传）
+
+对应上一轮报告里的四条「仍在 Studio / 只放行 25MB」的边界。工具数不变（仍是 43），新增
+三条同源代理与两个详情面板；所有写操作在 Host 侧注入令牌，浏览器不持有凭证。
+
+### 产品图 + 商业/植入面板
+
+* 详情新增「商业 / 植入简报」：品牌/产品/核心信息/卖点/CTA/必须避免可改（PATCH
+  `/campaign-brief`），产品图可传（multipart + 角度：参考/正面/细节/生活场景，≤15MB）。
+* 新代理 `/zipx-verticals` → `/api/v3/verticals`（可写，20MB 上限）。
+* 缩略图走 `/zipx-api/files/download?file_path=…`（后端公开媒体端点），不把字节搬进 DSH。
+
+### 团队协作（邀请 / 角色 / 移除）
+
+* 详情「剧组」卡从只读改成可管理：成员列表、邀请（editor/viewer/admin）、改角色、
+  移除成员、撤销待接受邀请。
+* 新代理 `/zipx-team` → `/api/v2/team`；`DELETE` 只在这条代理上放行（移除成员/撤销邀请）。
+* 套餐不含团队时后端 403，面板显示「当前套餐不含团队协作」，不当成"没有成员"；
+  席位购买与套餐开通仍在 Studio。
+
+### 知识库图片 / 音频 / 视频
+
+* `/zipx-kb` 改为**流式代理**（560MB 硬上限，声明长度先挡、chunked 边读边数），
+  视频不再把整包读进 Node 内存，也不再被旧 25MB 上限挡住。
+* 知识 tab 按扩展名分流：文档 → `/knowledge/documents`；图片 → `/assets/upload`
+  （角色/道具/场景）；音频 → `voice_sample`；视频 → `/knowledge/media/upload`（异步分析）。
+* 媒体素材列表（最近 8 条）来自 `/assets`；后端的大小/类型/内容嗅探仍是唯一把关点。
+
+### 分集「开始」保持对话指令
+
+* 这不是缺口：付费生成必须经批准卡。按钮只把一句带 episode_id 的话投进对话，
+  由模型先预检再调 `zipx_start_episode`。
+
+### 门禁
+
+* check-host：新增团队 GET/POST/PATCH/DELETE 透传（含 Host 令牌）、产品图 multipart
+  边界与字节、26MB 视频流式上传三条回归。
+* check-panel：新增知识媒体上传、团队/产品面板接线断言；locale 407 键 zh=en。
+* 真机：OpenAPI 确认 7 条端点存在（含 team 的 DELETE 与 product-images 的 multipart）。
+
+## 0.5.0（2026-11-17，把"尚未做"补齐：导出包 / 知识上传与引用 / 复盘发布 / 多版本）
+
+对应审计报告 §4 的 4.2–4.6。后端新增 2 条端点 + 1 个模块，工具数不变（导出与复盘复用
+HTTP，不新增模型可见工具）。
+
+### 导出包（4.3）
+
+* 后端 `GET /api/v3/director/project/{id}/export?scope=all|final`：把项目里的真实媒体文件
+  打成 zip，含 `manifest.json`（步骤/相对路径/字节数/被跳过的文件及原因）与
+  `发布清单.md`（文案 + 计划 + 文件表）。路径收集复用 `external._walk_media_paths`，
+  归属校验复用 `resolve_media_file`；超限（>500 文件 / >2GiB）直接 413 并给数字。
+* 字幕（.srt/.ass/.vtt）现在算**媒体路径**：以前只带走视频，字幕在面板与导出里都不可见。
+* 资产库 tab 与复盘 tab 都有「导出成片包 / 导出全部」。
+
+### 知识库上传与项目级引用（4.2）
+
+* `/zipx-kb` 代理放行 25MB multipart；知识 tab 新增「上传文档」（PDF/Word/Markdown/txt）。
+* 新模块 `agentic/creator_kb_selection.py`：项目级白名单存 `V3ProjectPrefs.payload`，
+  在**召回之后**过滤（空 = 不限制）。创建向导与项目设置都能勾选。
+* `PATCH /project/{id}` 增加 `creator_kb_doc_ids`、`publish_plan`；项目详情返回两者。
+
+### 复盘 / 发布 / A/B（4.4–4.6）
+
+* 新右栏 tab「复盘与发布」：发布物料（标题/一句话/标签，可复制）、发布计划
+  （时间/平台/备注，落库 + 导出 .ics 到自己的日历）、复盘（余额/本步预估/进度/修改次数/
+  可导出文件数/被跳过的文件）、多版本 A/B（当前步骤的 variations，选定写回该步产物）。
+* **诚实边界**：ZipX 不代发、不做平台账号绑定；这里给的是"可以自己发"的物料与导出包。
+
+### 其它
+
+* 面板按钮投递失败会显示提示（不再静默）。
+* 工具数 43（含并行加入的 `zipx_run_gate` / `zipx_update_story_outline`），卡片 43。
+
+## 0.4.2（2026-11-17，面板按钮真的能说话）
+
+* 修一个静默失效：`inputActions` 只发给会话作用域 slot（header / composer dock / hero），
+  `main` 面板与右栏 tab 拿不到；而打开 main 面板时对话会被替换卸载。于是项目详情/工作台/
+  资产库里的「预检并重试」「开始这一集」「推进」等按钮此前点了没反应。
+* 现在：会话作用域组件把 `inputActions` 记进 RUNTIME；面板取不到时先切回对话，
+  等输入框挂载后再投递（最多约 1.4 秒）。**面板仍然不直连付费后端**，只是把话送到对话。
+* 回归：`npm run check`（host wiring / panel / 41 tools / 41 cards / 327 键）。
+
+## 0.4.1（2026-11-17，剧组只读卡）
+
+* 项目详情新增「剧组」卡：读 `/zipx-collab/projects/{id}/members`（只读代理），
+  人数 > 1 才显示；邀请与权限仍在 Studio。
+* 0.4.0 的 41 个工具 / 6 个右栏 tab / 325+ locale 键不变。
+
+## 0.4.0（2026-11-17，P0-1～P1：从入口到成片）
+
+对应方案：`docs/ZipX_DSH_系统级融合方案_从入口到成片_20261117.md` §10。41 个工具（+3）。
+
+### P0-1 三模式创建（接 `/setup`）
+
+* 面板创建面板换成**向导**：创意 / 小说 / 剧本 三模式，一段母本（textarea）+ 默认规格，
+  一步创建。「填个示例」只填输入框，不替用户创作。
+* 创建统一走 `POST /api/v3/director/setup`（唯一能带 `workflow_type` 的入口）；
+  `zipx_create_project` 同步改走 /setup，新增 `mode`（idea/novel/script）与 `creator_mode`。
+  修掉两个硬伤：面板不传 `initial_content`、工具走 `/projects` 拿不到 workflow_type。
+* 模板/导演原型来自后端（`/zipx-meta/templates`、`/archetypes`）；选中模板自动带出原型与画幅；
+  商业模板多问三项（品牌/产品/核心信息）→ `campaign_brief`。
+
+### P0-2 项目整理
+
+* 后端新增 `PATCH /api/v3/director/project/{id}`（改名 / 归档 / 恢复）：
+  归档沿用 `status='archived'`（原状态存 `assets._pre_archive_status`，恢复写回），
+  不建列、不删除，且不再计入免费版项目配额（`check_project_limit` 只数进行中）。
+* `GET /projects` 新增 `q`（标题+母本子串）与 `include_archived`；默认排除归档。
+* 面板：搜索框、归档视图切换、项目详情里的改名/归档/恢复；新工具 `zipx_update_project`。
+
+### P0-3 分集
+
+* 项目详情新增分集区（集号/步骤/场/镜/时长/状态）；「进入这一集」把子项目绑到本会话，
+  「开始这一集」只发对话指令（付费动作仍走批准卡）。
+
+### P0-4 资产库 / 版本 / 导出
+
+* 右栏新增**资产库** tab：全项目图片/视频/音频、按类型筛选、逐项下载、复制 JSON 清单
+  （`download` + `/zipx-media`，拿到的是原始文件）。
+* 版本链只读展示（`/zipx-os/repair/{id}`）：面板不写第二套，采纳/退回仍走 `zipx_repair_action`。
+* 交付 tab 加「下载成片」。
+
+### P0-5～P0-8 账号 / 计费 / 失败 / 导入
+
+* 设置页：用量明细（`/zipx-account/history` → `/api/v1/credits/history`）、配对码连接
+  （`/zipx-pair/connect`，设备 id 本机持久化）、创作者知识库入口。
+* 项目详情：失败块（lifecycle=failed）→「预检并重试」/「只看诊断」，两条都只发对话。
+* 导入 = 创建向导的「小说 / 剧本」模式（`novel2video` / `script2video`，脚本直进剧本与分镜）。
+
+### P1 知识库 / 模板 / 协作 / 反向进入
+
+* `/zipx-kb` → `/api/v3/creator/*`：知识库 tab（文档列表、启停、加链接、加创意文本、
+  风格画像标签）。上传类仍在 Studio（代理 2MB 上限，不假装能传）。
+* `/zipx-meta` → `/api/v3/verticals`（只读）：模板目录。
+* `/zipx-collab` → `/api/v4/collab`（只读）+ 工具 `zipx_collab`（members/anchors/deliveries/audit/snapshots）。
+* `/zipx-os` 收紧为**只读**（与它自己的契约一致）。
+* 消费 Studio 的 `?zipx_project=` 反向进入；新增深链 `?zipx_new=idea|novel|script`。
+* 命令：`/zipx-new`、`/zipx-assets`、`/zipx-know`、`/zipx-deliver`（全部复用已有界面）。
+
+### 纪律
+
+* 一条规则一个实现点：创建映射（模式→workflow_type）、归档（PATCH）、版本链（repair）、
+  模板清单（后端）都没有第二套。
+* 面板按钮不直连付费后端：推进/重做/开集/重试一律转成用户消息，由批准卡决定。
+* 死代码清理：旧的 `CreateSheet`（标题/题材/形态手填）整段删除，由向导取代。
+
+## 2026-11-17 P1：语义重复 / 大纲 / 显式重判 / 省略号（0.4.x 修复项）
+
+* **语义重复判官** agentic/repetition_review.py：只看每章摘要+首尾 80 字，一次调用输出重复对；
+  失败/超时 checked=False（不阻断、不冒充通过），高严重度进 story_quality.issues。
+* **大纲层重复** story_plan.validate_outline + outline_quality.duplicate_chapters。
+* **全局大纲修改**：POST /project/{id}/story/outline + zipx_update_story_outline，只改
+  title/logline/characters、重算 outline_quality、门禁标旧，不重写正文。
+* **显式重判门禁**：POST /steps/{step}/regate + zipx_run_gate（只判不生成；provider 成本，
+  不扣用户积分）。
+* **省略号截断**：validate_chapter 增 ellipsis_truncation，定向重写要求补全台词/动作。
+* 接线门禁新增 validate_outline / repetition_review / content_fingerprint 三项（86 项）；
+  回归 tests/test_story_chapter_contract_nov2026.py 14 passed；插件 43 工具全绿。
+
+## 2026-11-17 故事章级质量闭环（0.3.0 修复项）
+
+* **单章重写不再绕过章节契约**：ensure_heading + validate_chapter（所有其它章参与，新增段落级
+  repetition_scene）+ 命中一次定向重写 + review_issues（不再写 []）。上下文改用唯一实现
+  story_context.previous_summary，并注入 Story Bible。
+* **门禁有版本**：gate_snapshot 写 content_fingerprint；产物在判决后被改过 ⇒
+  step_gate_failure 报「旧判决，需要重新质检」；WorkState 新增 gate_stale（不许推进，
+  summary 说清原因）。
+* **改完真的重判**：新增 WorkflowV2Manager.finalize_after_item_edits；多章批量在收尾调用一次，
+  清掉旧快照 → story_quality + 判官门禁 → 写回；对话里回「门禁已重判：pass/fail（x/y）」。
+* **story_quality.audit 查跨章重复**（整篇 + 段落），高严重度直接进 step_gate_failure；
+  故事质量契约新增第 4 条「禁止重复场景」。
+* 回归：backend/tests/test_story_chapter_contract_nov2026.py（9 项）。
+
+## 0.3.1（2026-11-17，项目详情 + 解绑）
+
+* **点开历史项目进入项目视图**：点项目不再「绑一下就关窗」。ProjectLibrary 新增
+  ProjectDetail：当前步骤/门禁、步骤清单、该步产物（图片/视频/音频）、最近创作事件，
+  并自动打开右侧「工作台」。绑定仍然发生（之后对话默认指向它），但界面留在项目上。
+* **解绑（新能力）**：后端 `POST /api/v3/director/session/unbind`（幂等，只清
+  `external_sessions.project_id`，不动项目/设备/会话）；插件新增
+  `zipx_unbind_project` 工具，项目详情与项目库头部都有「解除绑定」。
+* 项目库头部在已绑定时显示当前绑定并提供解绑入口。
+
 ## 0.3.0（2026-11-16，P0–P3：对话优先 + 原生卡片 + 批准 + 后台任务 + 右侧栏）
 
 以 `docs/ZipX_DSH_融合体验重构与增长可行性方案_20261116.md` 为唯一方案，替换 0.2.x 的
@@ -61,6 +279,44 @@
 * **产物签名可刷新**：产物卡新增刷新按钮，重新调 `/artifacts?media=1` 换新签名 URL（过期不再只能重开面板）。
 * **LAN/手机**：Host 代理从「仅回环」放宽到「回环或同一个 DSH 页面」，手机经 LAN 打开 DSH 也能用
   `/zipx-api`、账户、诊断与媒体代理。
+* **批准策略 never 不再把付费动作判死（2026-11-17 真机）**：DSH 的 full access 预设 = 
+  `approval policy never`，原生批准卡会**确定性地拒绝**，E2E 会话因此卡在 `zipx_start`，
+  模型只看到 `the user rejected tool`。现在 `tools/pre-execute` 先读会话策略：`never`
+  或没有批准服务时，降级到 `ctx.userQuestions` 的**一次性确认卡**（`intent.kind='approval'`，
+  「允许本次 / 拒绝」）——仍然是人点，不是模型自证；只有两者都不可用才 deny。
+  `zipx_connect` 增加「付费确认」一栏（DSH 批准卡 / 一次性确认卡 / 不可用），系统提示与
+  skill 明确「含付费动作的 run_code 单独一次并传 `timeoutMs: 600000`，默认 120 秒包含等待
+  人确认的时间」。回归：`scripts/check-host.mjs` 新增 never / 拒绝 / 无批准服务三条。
+* **建项目不再丢创意母本 / 规格（2026-11-17 真机）**：`zipx_create_project` 新增必填
+  `initial_content`（写入 `project.input_prompt`，故事步骤只读它），并映射
+  `episodes` → `story_requirements.chapter_count`、`duration_s` → `target_runtime_s`。
+  此前工具只发 title/genre，而 `form/episodes/duration_s` 不是 `DirectorSetupRequest`
+  的字段、被 Pydantic 静默丢弃；故事步骤于是拿 `project.input_prompt` 的占位串生成——
+  真机把「科幻政治惊悚」写成乡村染坊悬疑（6826 字、0 章）。回归：`check-host` 新增
+  母本/章节/时长/旧字段四条。
+* **2026-11-17 修复轮（F1/F2/F3/F4/F9）**：
+  * `zipx_start` 批准卡的 step 缺省按 `story` 预估（不再「费用未知」）。
+  * 新增 `zipx_update_project_input`（未开工项目改正 `project.input_prompt`，避免新建同名项目）；
+    工具面 35 → 36，`check-tools/check-skill/check-host` 同步。
+  * `zipx_start` render 显示预估 credits / 余额；后端 start 回执带
+    `estimate_calls/balance/estimate_kind`。
+  * `zipx_create_project` 的导演原型/画幅/平台/语言参数（源码已有，本轮构建带入）。
+  * skill/系统提示：科学/惊悚优先 nolan/fincher；未开工改母本用新工具。
+  * **生成结果回不到对话（2026-11-17 19:30–，session-0f608876）**：
+    * 后台完成通知只有 WorkState（\`story · running · 1/1\`），没有正文/媒体/产物指针；
+      \`zipx_read_asset\` 只给截断 JSON，\`zipx_artifacts\` 的 render 不列 URL；
+      \`/zipx-media\` 还拒掉契约 v5 的签名媒体路径（\`media_target_rejected\`），
+      且不补 Host 令牌（签名端点仍要登录态）⇒ 会话里看不到任何产物。
+    * 新增 **\`zipx_step_result\`**（工具面 36 → 37）+ **ResultCard**：正文节选、
+      章/场/镜/条计数、门禁、图片/视频网格（/zipx-media），并给「在 Studio 打开」。
+    * 后端新增 \`GET /project/{id}/result\`（\`agentic/step_result.py\`）：一步的预览读模型，
+      覆盖所有工作流步骤（结构化步骤回退到字段摘要）；没有产物如实 \`has_content=false\`。
+    * \`zipx_watch_step\` 到终态时取紧凑回执（<2KB）塞进完成通知，\`detail\` 先报「生成了什么」。
+    * \`/zipx-media\` 放行 \`/api/v3/director/project/\`，**只对配置后端**补 Bearer；
+      \`zipx_read_asset\` render 改成先读正文（story_text/script_text/hook/chapters）。
+    * 系统提示 + skill 硬规则：**生成结束必须调 \`zipx_step_result\`，只说「已完成」不算交付**。
+    * 回归：\`tests/test_step_result_nov2026.py\` 7 passed；\`check-host\` 新增 v5 媒体放行/令牌/
+      step_result 三条；\`check-panel\` 新增 ResultCard 两条。
 
 ### 删除 / 替换
 
@@ -230,3 +486,6 @@
 ## 0.1.0 — 2026-11-13
 
 * 首个可安装版本：标准 DSH 组合包（`dsh.bundle` + `engines.dsh`），零依赖构建，23 个工具。
+
+
+

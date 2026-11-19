@@ -54,7 +54,7 @@ await page.screenshot({ path: join(OUT, '00-shell.png') })
 report.steps.push('00-shell.png')
 
 // 侧栏入口：标签来自 locale（ZipX 创作 / ZipX Studio）
-const entry = page.locator('button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
+const entry = page.locator('button[aria-label="DSH导演"], button[aria-label="ZipX 创作"], button[aria-label="ZipX Studio"]').first()
 report.sidebarEntryFound = (await entry.count()) > 0
 if (report.sidebarEntryFound) {
   await entry.click()

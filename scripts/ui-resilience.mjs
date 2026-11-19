@@ -45,7 +45,7 @@ for (const testCase of CASES) {
   // 首启可能有预览版说明模态，先点掉
   const dismiss = page.locator('button', { hasText: /知道了|继续|Close|Got it/i }).first()
   if (await dismiss.count() > 0) { await dismiss.click().catch(() => {}) }
-  const sidebar = page.locator('[data-dsh-panel="zipx"], button:has-text("ZipX 创作")').first()
+  const sidebar = page.locator('[data-dsh-panel="zipx"], button:has-text("DSH导演"), button:has-text("ZipX 创作")').first()
   if (await sidebar.count() > 0) { await sidebar.click({ timeout: 3000 }).catch(() => {}) }
   await page.waitForTimeout(1500)
   const text = await page.evaluate(() => document.body.innerText)

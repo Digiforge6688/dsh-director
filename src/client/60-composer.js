@@ -4,6 +4,7 @@
       var store = useZipxStore();
       var sid = String(props.sessionId || '');
       useEffect(function () {
+        rememberInputActions(props);
         if (!sid) return;
         RUNTIME.lastSessionId = sid;
         void loadSession(sid);

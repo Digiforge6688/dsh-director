@@ -1,12 +1,12 @@
 {
   "format": 1,
   "title": {
-    "en": "ZipX Director",
-    "zh": "ZipX 导演"
+    "en": "DSH Director",
+    "zh": "DSH导演"
   },
   "description": {
-    "en": "From one sentence to a deliverable film inside DSH: projects, storyboards, keyframes, cuts, gates and cost — one confirmation at a time.",
-    "zh": "在 DSH 里从一句话做到一部能交付的片：项目、分镜、关键帧、成片、门禁与成本，一步一确认。"
+    "en": "Direct inside DSH while ZipX produces: premium films, multi-episode short dramas, creative videos and product videos. Script, storyboard, keyframes, voice, edit, quality gates and cost run in one conversation; every paid step is confirmed and the final cut exports for delivery.",
+    "zh": "在 DSH 里当导演，ZipX 把创意拍成片：精品影视、多集短剧、创意视频、带货商品视频。剧本、分镜、关键帧、配音、剪辑、门禁与成本都在一条对话里推进，每个付费步骤先确认，成片可导出交付。"
   },
   "metadata": {
     "categories": {
@@ -17,7 +17,32 @@
         }
       }
     },
-    "labels": {},
+    "labels": {
+      "film": {
+        "title": {
+          "en": "Film",
+          "zh": "精品影视"
+        }
+      },
+      "short-drama": {
+        "title": {
+          "en": "Short drama",
+          "zh": "多集短剧"
+        }
+      },
+      "creative-video": {
+        "title": {
+          "en": "Creative video",
+          "zh": "创意视频"
+        }
+      },
+      "commercial-video": {
+        "title": {
+          "en": "Product video",
+          "zh": "带货视频"
+        }
+      }
+    },
     "sortKeys": {
       "updated": {
         "title": {
@@ -32,12 +57,12 @@
     {
       "name": "@zipx/dsh-plugin",
       "title": {
-        "en": "ZipX Director",
-        "zh": "ZipX 导演"
+        "en": "DSH Director",
+        "zh": "DSH导演"
       },
       "description": {
-        "en": "Conversation-first filmmaking: native status/preview/approval/progress/artifact cards, a project chip, a right-side workbench, and a delivery checklist. 35 zipx_* tools; one confirmation per paid step. Sign up at www.zipx.ai (global) or www.zipx.vip (China).",
-        "zh": "对话优先的影视创作：原生状态/预检/批准/进度/产物卡片、项目 Chip、右侧工作台与交付检查单；35 个 zipx_* 工具，每个付费步骤都要一次确认。注册：www.zipx.ai（国际）/ www.zipx.vip（中国）。"
+        "en": "Direct inside DSH while ZipX produces: premium films, multi-episode short dramas, creative videos and product videos. Script, storyboard, keyframes, voice, edit, quality gates and cost run in one conversation; every paid step is confirmed and the final cut exports for delivery.",
+        "zh": "在 DSH 里当导演，ZipX 把创意拍成片：精品影视、多集短剧、创意视频、带货商品视频。剧本、分镜、关键帧、配音、剪辑、门禁与成本都在一条对话里推进，每个付费步骤先确认，成片可导出交付。"
       },
       "icon": "./icon.svg",
       "author": "ZipX",
@@ -48,26 +73,55 @@
       "metadata": {
         "category": "creation",
         "keywords": [
-          "zipx",
-          "dsh",
-          "dsh-plugin",
-          "dsh-zipx",
+          "dsh导演",
+          "dsh-director",
+          "DSH导演",
+          "导演",
+          "AI导演",
+          "影视",
+          "影视创作",
+          "精品影视",
+          "多集短剧",
+          "微短剧",
+          "短剧",
+          "短剧生成",
+          "竖屏短剧",
+          "创意视频",
+          "带货视频",
+          "商品视频",
+          "广告片",
+          "品牌视频",
+          "小说转视频",
+          "剧本转视频",
+          "文生视频",
+          "AI视频",
+          "分镜",
+          "关键帧",
+          "成片",
           "film",
+          "short-drama",
+          "commercial-video",
           "storyboard",
           "ai-film",
-          "director",
           "video",
-          "deepseek-harness"
+          "deepseek-harness",
+          "dsh-plugin",
+          "zipx"
         ],
-        "labels": [],
+        "labels": [
+          "film",
+          "short-drama",
+          "creative-video",
+          "commercial-video"
+        ],
         "sortKeys": {
-          "updated": 1794840000
+          "updated": 1795060935
         }
       },
       "versions": [
         {
-          "version": "0.3.0",
-          "publishTimestamp": 1794840000,
+          "version": "0.6.0",
+          "publishTimestamp": 1795060935,
           "source": {
             "type": "npm",
             "registry": "https://registry.npmjs.org"

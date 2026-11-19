@@ -38,14 +38,40 @@ expect(existsSync(join(root, 'lib', 'index.js')), 'lib/index.js exists (run the 
 expect(existsSync(join(root, 'icon.svg')), 'icon.svg exists (generator inlines it into the market entry)')
 expect(typeof pkg.icon === 'string', 'package.json icon points at the icon')
 
-for (const [locale, mustHave] of [['zh', '影视'], ['en', 'ZipX']]) {
+const localeMeta = {}
+for (const locale of ['zh', 'en']) {
   const file = join(root, 'locale', locale + '.json')
   if (!existsSync(file)) { problems.push('locale/' + locale + '.json exists'); continue }
   const dict = JSON.parse(readFileSync(file, 'utf8'))
+  localeMeta[locale] = dict?.meta || {}
   const title = dict?.meta?.title || ''
   const desc = dict?.meta?.description || ''
   expect(String(title).length > 0 && String(desc).length > 0, 'locale/' + locale + '.json has meta.title + meta.description')
-  if (locale === 'zh') expect(String(title).includes(mustHave) || String(desc).includes(mustHave), 'zh meta mentions ' + mustHave)
+  expect(String(title).includes(locale === 'zh' ? 'DSH导演' : 'DSH Director'), 'locale/' + locale + ' title is the unified display name')
+  if (locale === 'zh') expect(String(desc).includes('影视'), 'zh meta mentions 影视')
+  if (dict?.meta?.detail) expect(existsSync(join(root, dict.meta.detail)), 'locale/' + locale + '.json meta.detail exists: ' + dict.meta.detail)
+}
+const zhDesc = String(localeMeta.zh?.description || '')
+const enDesc = String(localeMeta.en?.description || '')
+for (const phrase of ['精品影视', '多集短剧', '创意视频', '带货']) {
+  expect(zhDesc.includes(phrase), 'zh description covers ' + phrase)
+}
+for (const phrase of ['premium films', 'short dramas', 'creative videos', 'product videos']) {
+  expect(enDesc.toLowerCase().includes(phrase.toLowerCase()), 'en description covers ' + phrase)
+}
+for (const keyword of ['dsh导演', 'dsh-director', '精品影视', '多集短剧', '创意视频', '带货视频']) {
+  expect(Array.isArray(pkg.keywords) && pkg.keywords.includes(keyword), 'keywords include ' + keyword)
+}
+const marketFile = join(root, 'market', 'index.json')
+if (existsSync(marketFile)) {
+  const market = JSON.parse(readFileSync(marketFile, 'utf8'))
+  const entry = market?.plugins?.[0]
+  expect(market?.format === 1 && entry?.name === pkg.name, 'market/index.json is format 1 for ' + pkg.name)
+  expect(entry?.version === undefined && entry?.versions?.some(v => v.version === pkg.version), 'market/index.json lists version ' + pkg.version)
+  expect(entry?.title?.zh === localeMeta.zh?.title && entry?.title?.en === localeMeta.en?.title, 'market title matches locale meta')
+  expect(String(entry?.description?.zh || '').includes('精品影视'), 'market description covers 精品影视')
+} else {
+  problems.push('market/index.json exists (run npm run market:index)')
 }
 
 const files = Array.isArray(pkg.files) ? pkg.files : []

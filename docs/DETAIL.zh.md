@@ -1,12 +1,25 @@
-# @zipx/dsh-plugin · 详情与设计说明
+# DSH导演（@zipx/dsh-plugin）· 详情与设计说明
 
 > 面向：想评估/二次开发这个插件的人。安装与快速上手看 [README](../README.md)。
 >
 > 注册 ZipX：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>。
 >
-> **0.3.0（2026-11-16）**：对话优先重构。35 个工具全部带 `presentationMeta`；18 张专属原生卡；
-> 付费走 `tools/pre-execute` 原生批准；长任务走 `ctx.jobs.start`；右侧栏工作台/产物/交付；
-> token 进 DSH Credentials；删除 `fallbackBinding`。工具→端点表仍有效，但“render 纯文本/面板三栏”的描述已过时。
+> **0.6.0（2026-11-19）**：统一显示名为 **DSH导演 / DSH Director**；43 个工具全部带
+> `presentationMeta`，43 张 keyed 原生卡；付费走 `tools/pre-execute` 原生批准；长任务走
+> `ctx.jobs.start`；右侧栏工作台/产物/知识/复盘/交付；token 进 DSH Credentials；
+> 项目库、分集、团队、产品图、导出包与知识库都在 DSH 内可用。
+
+## 0. 它交付什么
+
+| 创作类型 | 输入 | 交付 |
+|---|---|---|
+| 精品影视 | 一句创意 / 大纲 / 参考片方向 | 电影感短片或品牌片：剧本、分镜、关键帧、镜头、声音、母版、交付检查单 |
+| 多集短剧 | 小说 / 剧本 / 分集与时长 | 按集推进的竖屏短剧：章节、分集、人物、场景契约、逐集成片 |
+| 创意视频 | 一句话 / 概念 | 15–90 秒创意短片：钩子、分镜、关键帧、配音、剪辑、字幕 |
+| 带货视频 | 卖点 / 品牌产品 / 产品图 / CTA | 商品或品牌视频：营销简报、卖点结构、产品一致性、成片与发布包 |
+| 小说 / 剧本改编 | 原文 | 按章/按场拆解后直接进入分镜与生成 |
+
+插件本身不生成内容：它把 DSH 的对话、审批、任务与卡片接到 ZipX 的工作流、门禁、计费与产物上。
 
 ## 1. 它在架构里的位置
 
@@ -53,7 +66,7 @@ ZipX 产物（剧本/分镜/关键帧/成片）
 | `zipx_chat` | POST /chat | 写 | ✔ |
 
 `zipx_chat` 是**旧对话系统**的 fallback：它会把一句话交给 ZipX 的意图分类 → Guard → 派发链。
-新路径（其余 22 个工具）直接打后端步骤端点，**不经过** `DirectorAgent.chat()`。P3 起 `zipx_chat` 下线。
+新路径（其余 42 个工具）直接打后端步骤端点，**不经过** `DirectorAgent.chat()`。P3 起 `zipx_chat` 下线。
 
 ## 2.5 `capabilities.endpoints` 只是 **v5 增量**清单（别当成全量 API）
 
@@ -110,7 +123,7 @@ MISS @deepseek-ai/dsh-agent-preset      ← profile 的 node_modules 里根本�
 * 换成绝对路径可以跑，但那就不是可分发的包了。
 
 **所以本期的等价物是两条**：
-1. `zipx-tools` 行**全局注册** 35 个工具——任何会话都能看到（比“选对 preset”更不容易漏）；
+1. `zipx-tools` 行**全局注册** 43 个工具——任何会话都能看到（比“选对 preset”更不容易漏）；
 2. `systemPrompt` 段落 `zipx:creator-bridge` 承载「这套工具是什么 + 四条纪律」，不依赖任何额外包。
 
 要做真正的专属 preset，正确路径是**由已经依赖 `dsh-agent-preset` 的宿主 bundle 来声明这一行**（例如企业自己的组合包），

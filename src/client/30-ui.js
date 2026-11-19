@@ -95,6 +95,25 @@
         }));
     }
 
+    /** 原生 select：选项来自后端（模板/原型），不在这里硬编码清单。 */
+    function Select(props) {
+      var options = asArray(props.options);
+      return h('label', { style: { display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11.5, color: C.muted } },
+        props.label,
+        h('select', {
+          style: Object.assign({}, S.input, { height: 30, padding: '0 6px' }),
+          value: props.value || '',
+          disabled: Boolean(props.disabled),
+          onChange: function (e) { if (props.onChange) props.onChange(e.target.value); },
+        },
+          props.placeholder ? h('option', { value: '' }, props.placeholder) : null,
+          options.map(function (o, i) {
+            var value = typeof o === 'string' ? o : String(o && (o.id || o.value) || '');
+            var label = typeof o === 'string' ? o : String((o && (o.label || o.name || o.title)) || value);
+            return h('option', { key: value + i, value: value }, label);
+          })));
+    }
+
     function StepLine(props) {
       var current = props.current || {};
       return h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
