@@ -115,17 +115,17 @@
           "commercial-video"
         ],
         "sortKeys": {
-          "updated": 1795061024
+          "updated": 1795061680
         }
       },
       "versions": [
         {
           "version": "0.6.0",
-          "publishTimestamp": 1795061024,
+          "publishTimestamp": 1795061680,
           "source": {
             "type": "git",
             "url": "https://github.com/Digiforge6688/zipx-dsh-plugin",
-            "commit": "c2c1c40c36ff5c89b7307643a6444b7464c4de27"
+            "commit": "a72c9dbc3d3e398be3c3a16e86c52071485fb360"
           },
           "engines": {
             "dsh": ">=0.2.0 <0.3.0"
