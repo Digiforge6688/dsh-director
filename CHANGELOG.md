@@ -1,9 +1,16 @@
 # CHANGELOG
 
+## 1.0.1（2026-11-19，npm 发布补丁：文档与市场索引同步）
+
+* `dsh-director@1.0.1` / `dsh-zipx@1.0.1`：修正 npm 页面 README 仍写“未发布”的过期说明。
+* 市场索引改为 npm 源；功能与 1.0.0 相同（43 个工具）。
+
 ## 1.0.0（2026-11-19，包名迁移为 dsh-director，DSH导演 1.0）
 
 * **npm 包名改为 `dsh-director`**：与显示名 **DSH导演 / DSH Director** 同义，npm 与 DSH 市场
   搜索 `dsh director` 直接命中；旧包 `@zipx/dsh-plugin` 停在 0.3.0，不再更新。
+* **npm 已发布**：`dsh-director@1.0.0` 与别名 `dsh-zipx@1.0.0`（2026-11-19）；`0.0.0-stage`
+  占位版本已 deprecate；仓库 secret `NPM_TOKEN` 已配置，后续 tag 可自动发布。
 * 插件 bundle id、`cordis.patch.yml` 层名、右侧栏 slot key（`dsh-director/workbench` 等）
   同步改名；市场索引 `name` 与安装源保持一致。
 * 版本从 0.6.x 直接到 **1.0.0**：新包名是一次身份迁移，功能面与 0.6.0 相同（43 个工具）。

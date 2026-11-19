@@ -4,7 +4,7 @@
 >
 > 注册 ZipX：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>。
 >
-> **1.0.0（2026-11-19）**：包名迁移为 **`dsh-director`**（旧包 `@zipx/dsh-plugin` 停在 0.3.0）；
+> **1.0.1（2026-11-19）**：包名迁移为 **`dsh-director`**（旧包 `@zipx/dsh-plugin` 停在 0.3.0）；
 > 统一显示名为 **DSH导演 / DSH Director**；43 个工具全部带
 > `presentationMeta`，43 张 keyed 原生卡；付费走 `tools/pre-execute` 原生批准；长任务走
 > `ctx.jobs.start`；右侧栏工作台/产物/知识/复盘/交付；token 进 DSH Credentials；

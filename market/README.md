@@ -21,26 +21,26 @@ DSH 没有中心市场：一个市场就是一份 **format 1 JSON 索引**。本
 cd integrations/dsh-plugin
 npm run build
 npm run market:check          # 名称/介绍/关键词/图标/engines 等断言
-npm run market:index -- --source git --commit <40-hex> --base-url https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market
+npm run market:index -- --source npm --base-url https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market
 ```
 
-`--source npm` 只用于 npm 已发布同版本的情况；`--source git` 需要完整 40 位 commit。
+`--source npm` 用于 npm 已发布同版本的情况（当前 1.0.0 已发布）；`--source git` 需要完整 40 位 commit，仅作备用。
 生成器会顺手把 `icon.svg` 复制到 `market/icon.svg`，相对索引地址解析。
 
 ## 三、发布顺序
 
 1. 改 `package.json` 版本与 `locale/*.json` 的 `meta.title/description`；
 2. `npm run check`、`npm run market:check` 全绿；
-3. 提交源码，拿到 commit SHA；
-4. 用该 SHA 生成索引（`--source git`），再提交 `market/index.json`；
+3. 先发布 npm（tag 触发 `publish-npm.yml`，或本地 `npm publish`）；
+4. 用 `--source npm` 生成索引，再提交 `market/index.json`；
 5. push 到 GitHub `main`，索引地址即生效。
 
 ## 四、npm / 别名
 
 `dsh-director` 是包名（1.0.0 起从 `@zipx/dsh-plugin` 迁移；旧包停在 0.3.0，不再更新）；显示名统一为
 **DSH导演 / DSH Director**。别名包 `alias/dsh-zipx` 与主包同版本发布。
-npm 发布由 `.github/workflows/publish-npm.yml` 在 `v*` tag 上执行，需要仓库 secret
-`NPM_TOKEN`。
+npm 发布由 `.github/workflows/publish-npm.yml` 在 `v*` tag 上执行；仓库 secret `NPM_TOKEN`
+已于 2026-11-19 配置。首个版本会先出现 `0.0.0-stage` 占位，几秒后真实版本上线；占位版已 deprecate。
 
 ## 五、市场条目守则
 
