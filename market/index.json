@@ -64,7 +64,7 @@
         "en": "Direct inside DSH while ZipX produces: premium films, multi-episode short dramas, creative videos and product videos. Script, storyboard, keyframes, voice, edit, quality gates and cost run in one conversation; every paid step is confirmed and the final cut exports for delivery.",
         "zh": "在 DSH 里当导演，ZipX 把创意拍成片：精品影视、多集短剧、创意视频、带货商品视频。剧本、分镜、关键帧、配音、剪辑、门禁与成本都在一条对话里推进，每个付费步骤先确认，成片可导出交付。"
       },
-      "icon": "./icon.svg",
+      "icon": "https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/icon.svg",
       "author": "ZipX",
       "homepage": "https://www.zipx.ai",
       "repository": {
@@ -115,16 +115,17 @@
           "commercial-video"
         ],
         "sortKeys": {
-          "updated": 1795060935
+          "updated": 1795061024
         }
       },
       "versions": [
         {
           "version": "0.6.0",
-          "publishTimestamp": 1795060935,
+          "publishTimestamp": 1795061024,
           "source": {
-            "type": "npm",
-            "registry": "https://registry.npmjs.org"
+            "type": "git",
+            "url": "https://github.com/Digiforge6688/zipx-dsh-plugin",
+            "commit": "c2c1c40c36ff5c89b7307643a6444b7464c4de27"
           },
           "engines": {
             "dsh": ">=0.2.0 <0.3.0"
