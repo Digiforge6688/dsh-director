@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # npm publish --provenance 需要 OIDC token；缺这一行会让发布步骤直接失败。
+  id-token: write
 
 jobs:
   publish:
