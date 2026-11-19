@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.0.0（2026-11-19，包名迁移为 dsh-director，DSH导演 1.0）
+
+* **npm 包名改为 `dsh-director`**：与显示名 **DSH导演 / DSH Director** 同义，npm 与 DSH 市场
+  搜索 `dsh director` 直接命中；旧包 `@zipx/dsh-plugin` 停在 0.3.0，不再更新。
+* 插件 bundle id、`cordis.patch.yml` 层名、右侧栏 slot key（`dsh-director/workbench` 等）
+  同步改名；市场索引 `name` 与安装源保持一致。
+* 版本从 0.6.x 直接到 **1.0.0**：新包名是一次身份迁移，功能面与 0.6.0 相同（43 个工具）。
+* 别名包 `dsh-zipx` 升到 1.0.0，依赖 `dsh-director@1.0.0`。
+* `npm run check` / `npm run market:check` 全绿。
+
 ## 0.6.0（2026-11-19，统一命名 DSH导演 / DSH Director，发布 DSH 插件市场索引）
 
 * 显示名统一为 **DSH导演**（zh）/ **DSH Director**（en）：插件管理器、Discover 卡片、

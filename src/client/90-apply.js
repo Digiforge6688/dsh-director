@@ -80,23 +80,23 @@
 
       // Right-side workbench tabs (bodies + tab types).
       // The seat keys on the tab type's registration id, not on the openTab kind.
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/workbench', locale: NS }, WorkbenchTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/artifact', locale: NS }, ArtifactTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/delivery', locale: NS }, DeliveryTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/studio', locale: NS }, LegacyStudioTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/assets', locale: NS }, AssetsTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/knowledge', locale: NS }, KnowledgeTab);
-      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: '@zipx/dsh-plugin/review', locale: NS }, ReviewTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/workbench', locale: NS }, WorkbenchTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/artifact', locale: NS }, ArtifactTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/delivery', locale: NS }, DeliveryTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/studio', locale: NS }, LegacyStudioTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/assets', locale: NS }, AssetsTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/knowledge', locale: NS }, KnowledgeTab);
+      slot(ctx, 'sidebar.right.pane.tab', { name: 'sidebar.right.pane.tab', key: 'dsh-director/review', locale: NS }, ReviewTab);
       if (typeof ctx.inject === 'function') ctx.inject(['sidebarRightTabs'], function (scope) {
         var tabs = scope.sidebarRightTabs;
         var defs = [
-          { id: '@zipx/dsh-plugin/workbench', kind: 'zipx-workbench', title: 'workbench.title', guide: [{ id: 'open', order: 10, title: 'workbench.open', description: 'panel.hint' }] },
-          { id: '@zipx/dsh-plugin/artifact', kind: 'zipx-artifact', title: 'artifact.title' },
-          { id: '@zipx/dsh-plugin/delivery', kind: 'zipx-delivery', title: 'deliveryTab.title' },
-          { id: '@zipx/dsh-plugin/studio', kind: 'zipx-studio', title: 'legacy.title' },
-          { id: '@zipx/dsh-plugin/assets', kind: 'zipx-assets', title: 'assets.title' },
-          { id: '@zipx/dsh-plugin/knowledge', kind: 'zipx-knowledge', title: 'kb.title' },
-          { id: '@zipx/dsh-plugin/review', kind: 'zipx-review', title: 'review.title' },
+          { id: 'dsh-director/workbench', kind: 'zipx-workbench', title: 'workbench.title', guide: [{ id: 'open', order: 10, title: 'workbench.open', description: 'panel.hint' }] },
+          { id: 'dsh-director/artifact', kind: 'zipx-artifact', title: 'artifact.title' },
+          { id: 'dsh-director/delivery', kind: 'zipx-delivery', title: 'deliveryTab.title' },
+          { id: 'dsh-director/studio', kind: 'zipx-studio', title: 'legacy.title' },
+          { id: 'dsh-director/assets', kind: 'zipx-assets', title: 'assets.title' },
+          { id: 'dsh-director/knowledge', kind: 'zipx-knowledge', title: 'kb.title' },
+          { id: 'dsh-director/review', kind: 'zipx-review', title: 'review.title' },
         ];
         for (var d = 0; d < defs.length; d += 1) {
           (function (def) {

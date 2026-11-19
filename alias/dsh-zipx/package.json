@@ -1,7 +1,7 @@
 {
   "name": "dsh-zipx",
-  "version": "0.6.0",
-  "description": "Discovery alias for DSH Director / DSH导演: installs @zipx/dsh-plugin and applies its DSH bundle layer.",
+  "version": "1.0.0",
+  "description": "Discovery alias for DSH Director / DSH导演: installs dsh-director and applies its DSH bundle layer.",
   "keywords": [
     "dsh导演",
     "dsh-director",
@@ -42,7 +42,7 @@
     }
   },
   "dependencies": {
-    "@zipx/dsh-plugin": "0.6.0"
+    "dsh-director": "1.0.0"
   },
   "engines": {
     "node": ">=22.19.0",

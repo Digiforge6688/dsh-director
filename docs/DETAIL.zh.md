@@ -1,10 +1,11 @@
-# DSH导演（@zipx/dsh-plugin）· 详情与设计说明
+# DSH导演（dsh-director）· 详情与设计说明
 
 > 面向：想评估/二次开发这个插件的人。安装与快速上手看 [README](../README.md)。
 >
 > 注册 ZipX：国际站 <https://www.zipx.ai> · 中国站 <https://www.zipx.vip>。
 >
-> **0.6.0（2026-11-19）**：统一显示名为 **DSH导演 / DSH Director**；43 个工具全部带
+> **1.0.0（2026-11-19）**：包名迁移为 **`dsh-director`**（旧包 `@zipx/dsh-plugin` 停在 0.3.0）；
+> 统一显示名为 **DSH导演 / DSH Director**；43 个工具全部带
 > `presentationMeta`，43 张 keyed 原生卡；付费走 `tools/pre-execute` 原生批准；长任务走
 > `ctx.jobs.start`；右侧栏工作台/产物/知识/复盘/交付；token 进 DSH Credentials；
 > 项目库、分集、团队、产品图、导出包与知识库都在 DSH 内可用。

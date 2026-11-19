@@ -32,7 +32,7 @@ vm.runInContext(bundle, context, { filename: 'lib/client.js' })
 
 const report = { id: captured[0]?.id ?? null, registered: captured.length }
 const registration = captured[0]
-report.idMatchesPackage = registration.id === '@zipx/dsh-plugin'
+report.idMatchesPackage = registration.id === 'dsh-director'
 
 const requireStub = id => {
   if (id === 'react') return React

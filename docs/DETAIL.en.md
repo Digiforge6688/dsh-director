@@ -1,10 +1,11 @@
-# DSH Director (@zipx/dsh-plugin) · Detail & design notes
+# DSH Director (dsh-director) · Detail & design notes
 
 > For people evaluating or extending this plugin. Install and quick start: [README](../README.md).
 >
 > ZipX sign-up: global <https://www.zipx.ai> · China <https://www.zipx.vip>.
 >
-> **0.6.0 (2026-11-19)**: display name unified as **DSH Director / DSH导演**; 43 tools with
+> **1.0.0 (2026-11-19)**: package renamed to **`dsh-director`** (the old `@zipx/dsh-plugin` stays at 0.3.0);
+> display name unified as **DSH Director / DSH导演**; 43 tools with
 > `presentationMeta`, 43 keyed native cards; paid actions go through `tools/pre-execute`;
 > long tasks use `ctx.jobs.start`; workbench, artifacts, knowledge, review and delivery live in
 > the right sidebar; project library, episodes, team, product images, export bundles and the
@@ -42,7 +43,7 @@ completion. It implements no creative capability and caches no business state.
 ## 2. Install
 
 ~~~powershell
-dsh plugin --profile web add @zipx/dsh-plugin@0.6.0
+dsh plugin --profile web add dsh-director@1.0.0
 ~~~
 
 Or add the market index `https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`

@@ -1,7 +1,7 @@
-# dsh-zipx is a discovery/install alias. The runtime implementation is @zipx/dsh-plugin.
+# dsh-zipx is a discovery/install alias. The runtime implementation is dsh-director.
 - insert:
     - id: zipx-tools
-      name: '@zipx/dsh-plugin'
+      name: 'dsh-director'
       config:
         baseUrl: 'http://localhost:8000'
         language: zh

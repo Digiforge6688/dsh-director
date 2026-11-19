@@ -8,7 +8,7 @@
  * scripts/build.mjs. Every part shares this factory closure.
  */
 window.__ModuleLoader__.load({
-  id: '@zipx/dsh-plugin',
+  id: 'dsh-director',
   factory: function (require) {
     var module = { exports: {} };
     var exports = module.exports;

@@ -37,7 +37,7 @@ npm run market:index -- --source git --commit <40-hex> --base-url https://cdn.js
 
 ## 四、npm / 别名
 
-`@zipx/dsh-plugin` 是包名（不可随便改，会断掉已装用户）；显示名统一为
+`dsh-director` 是包名（1.0.0 起从 `@zipx/dsh-plugin` 迁移；旧包停在 0.3.0，不再更新）；显示名统一为
 **DSH导演 / DSH Director**。别名包 `alias/dsh-zipx` 与主包同版本发布。
 npm 发布由 `.github/workflows/publish-npm.yml` 在 `v*` tag 上执行，需要仓库 secret
 `NPM_TOKEN`。

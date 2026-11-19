@@ -55,7 +55,7 @@
   },
   "plugins": [
     {
-      "name": "@zipx/dsh-plugin",
+      "name": "dsh-director",
       "title": {
         "en": "DSH Director",
         "zh": "DSH导演"
@@ -115,13 +115,13 @@
           "commercial-video"
         ],
         "sortKeys": {
-          "updated": 1795061680
+          "updated": 1795065393
         }
       },
       "versions": [
         {
-          "version": "0.6.0",
-          "publishTimestamp": 1795061680,
+          "version": "1.0.0",
+          "publishTimestamp": 1795065393,
           "source": {
             "type": "git",
             "url": "https://github.com/Digiforge6688/zipx-dsh-plugin",

@@ -1,4 +1,4 @@
-# DSH导演（dsh导演）· DSH 影视创作插件
+# DSH导演（dsh-director）· DSH 影视创作插件
 
 > **在 DSH 里当导演，ZipX 负责拍。**
 > 精品影视、多集短剧、创意视频、带货商品视频 —— 一句话 / 小说 / 剧本进，剧本、分镜、关键帧、配音、成片出；每一步花多少、能不能过、交付什么，都在对话里看得见。
@@ -44,43 +44,42 @@
 - 一个可访问的 **ZipX 后端**（默认 `http://localhost:8000`）和 **ZipX 账号**（[国际站](https://www.zipx.ai) / [中国站](https://www.zipx.vip)）。
 - 插件是 ZipX 的 DSH 前端，不自带模型或后端。没有 ZipX 后端时**安装能成功**，也能看到连接与诊断，但创建/推进项目不可用。
 
-### 从 DSH 插件市场安装（推荐，0.6.0）
+### 从 DSH 插件市场安装（推荐，1.0.0）
 
 DSH 的市场是一个 format 1 索引；本项目自带索引，并列出精确 commit，所以**不依赖 npm 发布**也能装：
 
 1. 打开 **插件 → 发现（Discover）→ 添加索引源**；
 2. 填入：`https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
    （备用：`https://raw.githubusercontent.com/Digiforge6688/zipx-dsh-plugin/main/market/index.json`）；
-3. 搜索 **DSH导演 / dsh导演 / 短剧 / 带货视频 / 分镜**，在卡片上点安装。
+3. 搜索 **DSH导演 / dsh导演 / dsh director / 短剧 / 带货视频 / 分镜**，在卡片上点安装。
 
 > 索引条目固定到一个 40 位 commit，装到的就是当时验证过的那一版；升级时索引会先更新。
 
-### 从 GitHub tag 安装（0.6.0，无需 npm）
+### 从 GitHub tag 安装（1.0.0，无需 npm）
 
 ~~~powershell
-dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v0.6.0
+dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v1.0.0
 ~~~
 
 > 普通安装的 DSH 直接用 `dsh`。如果你是在 DSH 源码 checkout 里运行（没有全局 `dsh`），把 `dsh` 换成 `pnpm dsh`，并在 checkout 根目录执行。
 
-### npm（当前 npm 上是 0.3.0）
+### npm（`dsh-director` 发布待完成）
 
-0.6.0 的 npm 发布仍在处理中（GitHub Actions 的 `NPM_TOKEN` 尚未成功）；在 npm 上直接装到的是旧版：
+新包名是 **`dsh-director`**，npm 上还没有 1.0.0（GitHub Actions 的 `NPM_TOKEN` 尚未成功）。发布完成前请用上面的**市场索引**或 **GitHub tag**：
 
 ~~~powershell
-dsh plugin --profile web add @zipx/dsh-plugin@0.3.0
-# 发现别名同样只有旧版：
-dsh plugin --profile web add dsh-zipx@0.3.0
+# 发布后可用（现在会 404）
+dsh plugin --profile web add dsh-director@1.0.0
 ~~~
 
-需要 0.6.0 时请用上面的**市场索引**或 **GitHub tag**，两条路都不经过 npm。
+旧包 `@zipx/dsh-plugin` 停在 **0.3.0**，只作历史兼容，不再更新；旧装法仍可运行，但不要指望它带 1.0 的名称、面板与工具。
 
 ### 从本地 tgz / 源码安装（开发者）
 
 ~~~powershell
 cd <ZipX 仓库>\integrations\dsh-plugin
 npm pack
-dsh plugin --profile web add .\zipx-dsh-plugin-0.6.0.tgz
+dsh plugin --profile web add .\dsh-director-1.0.0.tgz
 ~~~
 
 从源码目录安装（pnpm 会跑 prepare 构建）：
@@ -96,9 +95,9 @@ pnpm dsh plugin --profile web add <ZipX 仓库>\integrations\dsh-plugin
 dsh plugin --profile web list
 ~~~
 
-市场/GitHub tag 安装后应当看到 `@zipx/dsh-plugin@0.6.0`。
+市场/GitHub tag 安装后应当看到 `dsh-director@1.0.0`。
 
-> npm 包名是 `@zipx/dsh-plugin`（包名不可改，否则会断掉已装用户）；市场显示名统一为 **DSH导演** / **DSH Director**，搜索关键词包含 `dsh导演`、`dsh-director`、`短剧`、`带货视频`。别名包 `dsh-zipx` 与主包同版本发布，装任意一个即可。
+> 为什么改名：`@zipx/dsh-plugin` 是组织 scope，普通用户在 npm 和插件市场里不容易一眼认出；`dsh-director` 与显示名 **DSH导演 / DSH Director** 同义，搜索 `dsh director` 直接命中。显示名仍由 `locale/*.json` 的 `meta.title` 决定，包名只负责安装与识别。别名包 `dsh-zipx` 升到 1.0.0，依赖 `dsh-director@1.0.0`，装任意一个即可。
 
 ### 连接 ZipX
 

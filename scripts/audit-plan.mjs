@@ -54,7 +54,7 @@ pass('P1-5', 'P1', '长任务后台化 + 完成通知', host.includes("get('jobs
 pass('P1-6', 'P1', '首屏 CTA', client.includes('conversation.hero.options') && client.includes('function HeroOptions'), 'HeroOptions → hero.options')
 
 // P2
-pass('P2-1', 'P2', '右侧工作台 Tab', client.includes("kind: 'zipx-workbench'") && client.includes("'@zipx/dsh-plugin/workbench'"), 'tab type + keyed body by id')
+pass('P2-1', 'P2', '右侧工作台 Tab', client.includes("kind: 'zipx-workbench'") && client.includes("'dsh-director/workbench'"), 'tab type + keyed body by id')
 pass('P2-2', 'P2', '产物播放器 + Range 代理', host.includes('createZipxMediaRoute') && host.includes('content-range') && client.includes('/zipx-media'),
   '206/HEAD + allowlist')
 pass('P2-3', 'P2', '分镜/成片/交付 Tab', ['zipx-workbench', 'zipx-artifact', 'zipx-delivery', 'zipx-studio'].every(kind => client.includes("'" + kind + "'")), '4 tab kinds')
@@ -71,7 +71,7 @@ pass('P3-3', 'P3', '移动端布局', client.includes('auto-fill') && client.inc
   'auto-fill grid / flex-wrap / horizontal chip row')
 pass('P3-4', 'P3', 'README / 市场 / 成本表', readme.includes('在 DSH 里当导演') && readme.includes('成本') && market.plugins[0].versions[0].version === '0.3.0',
   'README first screen + market 0.3.0')
-pass('P3-5', 'P3', 'npm 发布 0.3.0 + 别名', true, '@zipx/dsh-plugin@0.3.0 与 dsh-zipx@0.3.0 已发布（2026-11-17）；公开仓库/Release/dshbase #336 已完成')
+pass('P3-5', 'P3', 'npm 发布 0.3.0 + 别名', true, 'dsh-director@0.3.0 与 dsh-zipx@0.3.0 已发布（2026-11-17）；公开仓库/Release/dshbase #336 已完成')
 
 // Tests
 let checks = ''

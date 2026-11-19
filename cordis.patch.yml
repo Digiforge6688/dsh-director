@@ -2,7 +2,7 @@
 # 装机后由 profile 作为一层应用；行名必须是裸包名，Node 才能从安装位置解析到代码。
 - insert:
     - id: zipx-tools
-      name: '@zipx/dsh-plugin'
+      name: 'dsh-director'
       config:
         baseUrl: 'http://localhost:8000'
         language: zh

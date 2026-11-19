@@ -107,7 +107,7 @@ function render(components, slotName, key, props) {
 const loaded = load()
 const DICTS = loaded.dicts
 const components = loaded.components
-check('factory id/package', code.includes("id: '@zipx/dsh-plugin'"), '')
+check('factory id/package', code.includes("id: 'dsh-director'"), '')
 check('dictionary parity', DICTS.zipx && Object.keys(DICTS.zipx.zh).length === Object.keys(DICTS.zipx.en).length, JSON.stringify({ zh: Object.keys(DICTS.zipx.zh).length, en: Object.keys(DICTS.zipx.en).length }))
 
 const MAIN_TEXT = render(components, 'main', 'zipx').text
@@ -120,11 +120,11 @@ check('settings section', render(components, 'settings.section').text.includes('
 
 const cards = components.filter(c => c.def.name === 'tool.call.toolview')
 check('43 keyed tool cards', cards.length === 43, cards.length)
-const WB_TEXT = render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/workbench').text
+const WB_TEXT = render(components, 'sidebar.right.pane.tab', 'dsh-director/workbench').text
 check('workbench tab body', WB_TEXT.includes('还没有绑定项目'), WB_TEXT.slice(0, 200))
-check('artifact tab body', render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/artifact').text.includes('产物预览'), '')
-check('delivery tab body', render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/delivery').text.includes('交付检查单'), '')
-check('legacy studio tab body', render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/studio').text.includes('Studio'), '')
+check('artifact tab body', render(components, 'sidebar.right.pane.tab', 'dsh-director/artifact').text.includes('产物预览'), '')
+check('delivery tab body', render(components, 'sidebar.right.pane.tab', 'dsh-director/delivery').text.includes('交付检查单'), '')
+check('legacy studio tab body', render(components, 'sidebar.right.pane.tab', 'dsh-director/studio').text.includes('Studio'), '')
 const legacy = load('?zipx_shell=legacy')
 check('legacy shell still boots', render(legacy.components, 'main', 'zipx').text.includes('Studio（legacy）'), render(legacy.components, 'main', 'zipx').text.slice(0, 160))
 
@@ -175,17 +175,17 @@ const hasTextarea = (function find(node) {
 })(CREATE.tree)
 check('create wizard renders its textarea', hasTextarea, '')
 
-const ASSETS = render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/assets')
+const ASSETS = render(components, 'sidebar.right.pane.tab', 'dsh-director/assets')
 check('assets tab body', ASSETS.text.includes('资产库'), ASSETS.text.slice(0, 160))
-const KB = render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/knowledge')
+const KB = render(components, 'sidebar.right.pane.tab', 'dsh-director/knowledge')
 check('knowledge tab body', KB.text.includes('知识库') && KB.text.includes('加一个链接'), KB.text.slice(0, 200))
 check('knowledge tab uploads files', KB.text.includes('上传文档'), KB.text.slice(0, 240))
 check('knowledge tab uploads media', KB.text.includes('上传文档 / 图片 / 音视频') && KB.text.includes('角色参考'), KB.text.slice(0, 280))
 check('knowledge media routes wired', code.includes('knowledge/media/upload') && code.includes("'/zipx-kb/assets/upload'"), '')
 check('project detail manages team and product', code.includes('/zipx-team/members') && code.includes('/product-images') && code.includes('/campaign-brief'), '')
-const REVIEW = render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/review')
+const REVIEW = render(components, 'sidebar.right.pane.tab', 'dsh-director/review')
 check('review tab body', REVIEW.text.includes('复盘与发布'), REVIEW.text.slice(0, 160))
-const ASSET_TEXT2 = render(components, 'sidebar.right.pane.tab', '@zipx/dsh-plugin/assets').text
+const ASSET_TEXT2 = render(components, 'sidebar.right.pane.tab', 'dsh-director/assets').text
 // 导出链接要带 projectId 才渲染（空状态没有项目）；这里钉住实现里真的拼了导出端点。
 check('assets tab exports a zip', ASSET_TEXT2.includes('资产库') && code.includes("'/export?scope=final'") && code.includes("'/export?scope=all'"), ASSET_TEXT2.slice(0, 200))
 check('media proxy route used', code.includes('/zipx-media'), '')
