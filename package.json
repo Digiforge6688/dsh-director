@@ -1,6 +1,6 @@
 {
   "name": "dsh-director",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "DSH导演（dsh-director / dsh导演）· DSH 影视创作插件：精品影视、多集短剧、创意视频、带货商品视频。ZipX 负责剧本→分镜→关键帧→配音→成片，DSH 负责对话、审批与交付。",
   "icon": "./icon.svg",

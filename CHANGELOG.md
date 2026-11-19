@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 1.0.2（2026-11-19，仓库更名为 dsh-director，地址统一）
+
+* **GitHub 仓库改名**：`Digiforge6688/zipx-dsh-plugin` → `Digiforge6688/dsh-director`（旧链接 301 重定向）。
+  第三方市场 dsh.market 的卡片标题读的是**仓库名**，改名后下一轮采集即显示 `dsh-director`。
+* `package.json` 的 `repository`/`bugs`、README 与详情页、`market/index.json` 的
+  `icon`/`repository`、别名包 `dsh-zipx` 的 `repository` 全部指向新仓库；功能与 1.0.1 相同（43 个工具）。
+* 市场索引版本 **1.0.2**，安装源仍是 npm；`dsh-zipx@1.0.2` 依赖 `dsh-director@1.0.2`。
+
 ## 1.0.1（2026-11-19，npm 发布补丁：文档与市场索引同步）
 
 * `dsh-director@1.0.1` / `dsh-zipx@1.0.1`：修正 npm 页面 README 仍写“未发布”的过期说明。

@@ -44,9 +44,9 @@
 - 一个可访问的 **ZipX 后端**（默认 `http://localhost:8000`）和 **ZipX 账号**（[国际站](https://www.zipx.ai) / [中国站](https://www.zipx.vip)）。
 - 插件是 ZipX 的 DSH 前端，不自带模型或后端。没有 ZipX 后端时**安装能成功**，也能看到连接与诊断，但创建/推进项目不可用。
 
-### 从 DSH 插件市场安装（推荐，1.0.1）
+### 从 DSH 插件市场安装（推荐，1.0.2）
 
-DSH 的市场是一个 format 1 索引；本项目自带索引，安装源是 npm 上已发布的 **`dsh-director@1.0.1`**：
+DSH 的市场是一个 format 1 索引；本项目自带索引，安装源是 npm 上已发布的 **`dsh-director@1.0.2`**：
 
 1. 打开 **插件 → 发现（Discover）→ 添加索引源**；
 2. 填入：`https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market/index.json`
@@ -55,18 +55,18 @@ DSH 的市场是一个 format 1 索引；本项目自带索引，安装源是 np
 
 > 索引里的版本与 npm 上的 `dsh-director` 同版本；升级时索引会先更新。
 
-### 从 npm 安装（已发布 1.0.1）
+### 从 npm 安装（已发布 1.0.2）
 
 ~~~powershell
-dsh plugin --profile web add dsh-director@1.0.1
+dsh plugin --profile web add dsh-director@1.0.2
 ~~~
 
 > npm 上还有一个 `0.0.0-stage` 占位版本，已 deprecate，不要安装它。
 
-### 从 GitHub tag 安装（1.0.1，无需 npm）
+### 从 GitHub tag 安装（1.0.2，无需 npm）
 
 ~~~powershell
-dsh plugin --profile web add github:Digiforge6688/dsh-director#v1.0.1
+dsh plugin --profile web add github:Digiforge6688/dsh-director#v1.0.2
 ~~~
 
 > 普通安装的 DSH 直接用 `dsh`。如果你是在 DSH 源码 checkout 里运行（没有全局 `dsh`），把 `dsh` 换成 `pnpm dsh`，并在 checkout 根目录执行。
@@ -78,7 +78,7 @@ dsh plugin --profile web add github:Digiforge6688/dsh-director#v1.0.1
 ~~~powershell
 cd <ZipX 仓库>\integrations\dsh-plugin
 npm pack
-dsh plugin --profile web add .\dsh-director-1.0.1.tgz
+dsh plugin --profile web add .\dsh-director-1.0.2.tgz
 ~~~
 
 从源码目录安装（pnpm 会跑 prepare 构建）：
@@ -94,9 +94,9 @@ pnpm dsh plugin --profile web add <ZipX 仓库>\integrations\dsh-plugin
 dsh plugin --profile web list
 ~~~
 
-市场/GitHub tag 安装后应当看到 `dsh-director@1.0.1`。
+市场/GitHub tag 安装后应当看到 `dsh-director@1.0.2`。
 
-> 为什么改名：`@zipx/dsh-plugin` 是组织 scope，普通用户在 npm 和插件市场里不容易一眼认出；`dsh-director` 与显示名 **DSH导演 / DSH Director** 同义，搜索 `dsh director` 直接命中。显示名仍由 `locale/*.json` 的 `meta.title` 决定，包名只负责安装与识别。别名包 `dsh-zipx` 升到 1.0.1，依赖 `dsh-director@1.0.1`，装任意一个即可。
+> 为什么改名：`@zipx/dsh-plugin` 是组织 scope，普通用户在 npm 和插件市场里不容易一眼认出；`dsh-director` 与显示名 **DSH导演 / DSH Director** 同义，搜索 `dsh director` 直接命中。显示名仍由 `locale/*.json` 的 `meta.title` 决定，包名只负责安装与识别。别名包 `dsh-zipx` 升到 1.0.2，依赖 `dsh-director@1.0.2`，装任意一个即可。
 
 ### 连接 ZipX
 

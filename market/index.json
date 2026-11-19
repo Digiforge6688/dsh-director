@@ -115,13 +115,13 @@
           "commercial-video"
         ],
         "sortKeys": {
-          "updated": 1795071630
+          "updated": 1795075639
         }
       },
       "versions": [
         {
-          "version": "1.0.1",
-          "publishTimestamp": 1795071630,
+          "version": "1.0.2",
+          "publishTimestamp": 1795075639,
           "source": {
             "type": "npm",
             "registry": "https://registry.npmjs.org"

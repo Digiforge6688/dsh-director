@@ -1,6 +1,6 @@
 {
   "name": "dsh-zipx",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Discovery alias for DSH Director / DSH导演: installs dsh-director and applies its DSH bundle layer.",
   "keywords": [
     "dsh导演",
@@ -24,7 +24,7 @@
   "homepage": "https://www.zipx.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Digiforge6688/zipx-dsh-plugin.git",
+    "url": "git+https://github.com/Digiforge6688/dsh-director.git",
     "directory": "alias/dsh-zipx"
   },
   "publishConfig": {
@@ -42,7 +42,7 @@
     }
   },
   "dependencies": {
-    "dsh-director": "1.0.1"
+    "dsh-director": "1.0.2"
   },
   "engines": {
     "node": ">=22.19.0",
