@@ -44,10 +44,10 @@
   "homepage": "https://www.zipx.ai",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Digiforge6688/zipx-dsh-plugin.git"
+    "url": "git+https://github.com/Digiforge6688/dsh-director.git"
   },
   "bugs": {
-    "url": "https://github.com/Digiforge6688/zipx-dsh-plugin/issues"
+    "url": "https://github.com/Digiforge6688/dsh-director/issues"
   },
   "publishConfig": {
     "access": "public",

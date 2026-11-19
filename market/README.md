@@ -7,8 +7,8 @@ DSH 没有中心市场：一个市场就是一份 **format 1 JSON 索引**。本
 
 ## 一、索引地址
 
-- 主地址（国内快）：`https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
-- 备用：`https://raw.githubusercontent.com/Digiforge6688/zipx-dsh-plugin/main/market/index.json`
+- 主地址（国内快）：`https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market/index.json`
+- 备用：`https://raw.githubusercontent.com/Digiforge6688/dsh-director/main/market/index.json`
 
 在 DSH 里打开 **插件 → 发现（Discover）→ 添加索引源**，粘贴上面任意一条。搜索
 **DSH导演 / dsh导演 / 短剧 / 带货视频 / 分镜** 即可安装。
@@ -21,10 +21,10 @@ DSH 没有中心市场：一个市场就是一份 **format 1 JSON 索引**。本
 cd integrations/dsh-plugin
 npm run build
 npm run market:check          # 名称/介绍/关键词/图标/engines 等断言
-npm run market:index -- --source npm --base-url https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market
+npm run market:index -- --source npm --base-url https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market
 ```
 
-`--source npm` 用于 npm 已发布同版本的情况（当前 1.0.0 已发布）；`--source git` 需要完整 40 位 commit，仅作备用。
+`--source npm` 用于 npm 已发布同版本的情况（当前 1.0.1 已发布）；`--source git` 需要完整 40 位 commit，仅作备用。
 生成器会顺手把 `icon.svg` 复制到 `market/icon.svg`，相对索引地址解析。
 
 ## 三、发布顺序

@@ -3,7 +3,7 @@
 > **在 DSH 里当导演，ZipX 负责拍。**
 > 精品影视、多集短剧、创意视频、带货商品视频 —— 一句话 / 小说 / 剧本进，剧本、分镜、关键帧、配音、成片出；每一步花多少、能不能过、交付什么，都在对话里看得见。
 >
-> 源码/发布：<https://github.com/Digiforge6688/zipx-dsh-plugin> · 插件市场索引：<https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json>
+> 源码/发布：<https://github.com/Digiforge6688/dsh-director> · 插件市场索引：<https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market/index.json>
 
 这是一个标准 DSH 组合包（`dsh.bundle`），不是网页的第二个壳。装好后：
 
@@ -49,8 +49,8 @@
 DSH 的市场是一个 format 1 索引；本项目自带索引，安装源是 npm 上已发布的 **`dsh-director@1.0.1`**：
 
 1. 打开 **插件 → 发现（Discover）→ 添加索引源**；
-2. 填入：`https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
-   （备用：`https://raw.githubusercontent.com/Digiforge6688/zipx-dsh-plugin/main/market/index.json`）；
+2. 填入：`https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market/index.json`
+   （备用：`https://raw.githubusercontent.com/Digiforge6688/dsh-director/main/market/index.json`）；
 3. 搜索 **DSH导演 / dsh导演 / dsh director / 短剧 / 带货视频 / 分镜**，在卡片上点安装。
 
 > 索引里的版本与 npm 上的 `dsh-director` 同版本；升级时索引会先更新。
@@ -66,7 +66,7 @@ dsh plugin --profile web add dsh-director@1.0.1
 ### 从 GitHub tag 安装（1.0.1，无需 npm）
 
 ~~~powershell
-dsh plugin --profile web add github:Digiforge6688/zipx-dsh-plugin#v1.0.1
+dsh plugin --profile web add github:Digiforge6688/dsh-director#v1.0.1
 ~~~
 
 > 普通安装的 DSH 直接用 `dsh`。如果你是在 DSH 源码 checkout 里运行（没有全局 `dsh`），把 `dsh` 换成 `pnpm dsh`，并在 checkout 根目录执行。

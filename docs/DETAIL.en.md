@@ -46,7 +46,7 @@ completion. It implements no creative capability and caches no business state.
 dsh plugin --profile web add dsh-director@1.0.1
 ~~~
 
-Or add the market index `https://cdn.jsdelivr.net/gh/Digiforge6688/zipx-dsh-plugin@main/market/index.json`
+Or add the market index `https://cdn.jsdelivr.net/gh/Digiforge6688/dsh-director@main/market/index.json`
 under **Plugins → Discover → Add index source** and search for **DSH Director / 短剧 / 带货视频**.
 
 ## 3. Identity and credentials
